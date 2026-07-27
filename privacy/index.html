@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy | Linkwell</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #101114;
+    --ink-soft: #5c6370;
+    --ink-faint: #9aa1ad;
+    --line: #e8eaee;
+    --bg: #ffffff;
+    --bg-soft: #f7f8fa;
+    --accent: #5352e8;
+    --accent-soft: #eeeefc;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.65;
+  }
+  nav {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 22px 28px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .logo { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; text-decoration: none; color: var(--ink); }
+  .logo-mark {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(135deg, #6a63f0, #4a49d6);
+    display: grid; place-items: center;
+  }
+  .logo-mark svg { width: 14px; height: 14px; }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 24px 28px 96px;
+  }
+  h1 {
+    font-size: clamp(30px, 5vw, 42px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 8px;
+  }
+  .updated { color: var(--ink-faint); font-size: 14px; margin-bottom: 40px; }
+  h2 {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 38px 0 12px;
+  }
+  p { color: #2c2f36; font-size: 15.5px; margin-bottom: 14px; }
+  ul { margin: 0 0 14px 20px; }
+  li { color: #2c2f36; font-size: 15.5px; margin-bottom: 7px; }
+  strong { font-weight: 600; color: var(--ink); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .intro {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 8px;
+  }
+  .intro p:last-child { margin-bottom: 0; }
+  .placeholder {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    padding: 3px 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #b45309;
+  }
+  footer {
+    border-top: 1px solid var(--line);
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 24px 28px;
+    font-size: 13px;
+    color: var(--ink-faint);
+    display: flex;
+    justify-content: space-between;
+  }
+  footer a { color: inherit; }
+  footer a:hover { color: var(--ink); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="/">
+    <span class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round">
+        <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/>
+        <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>
+      </svg>
+    </span>
+    Linkwell
+  </a>
+</nav>
+
+<main>
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: July 27, 2026</p>
+
+  <div class="intro">
+    <p>Linkwell is a browser extension that drafts personalized outreach emails from the LinkedIn profile you are actively viewing. This policy explains what information Linkwell handles, how it is used, and how long it is kept.</p>
+    <p>The short version: Linkwell reads a profile only when you ask it to, uses that information to draft one email, and does not keep the profile data afterward.</p>
+  </div>
+
+  <h2>Information Linkwell accesses</h2>
+  <p>When you open the Linkwell popup on a LinkedIn profile and ask it to draft an email, Linkwell reads publicly visible information from that profile page, which may include the person's name, headline, current role, work experience, education, and skills.</p>
+  <p>Linkwell also stores the information you provide about yourself so it can write in your voice, including your name, your organization, and, optionally, the contents of a CV or resume you choose to upload. To sign you in, Linkwell receives your name and email address from your Google account.</p>
+
+  <h2>How your information is used</h2>
+  <p>Profile information and your own details are sent to Linkwell's server, which uses an AI language model to generate a personalized email draft. The draft is returned to the extension and opened in your Gmail or Outlook compose window for you to review, edit, and send. Linkwell does not send any email on your behalf.</p>
+
+  <h2>How long information is kept</h2>
+  <ul>
+    <li><strong>Profile data of people you draft to:</strong> not retained. It is used to generate your draft and is not stored by the extension after the draft is created.</li>
+    <li><strong>Your own account information</strong> (name, email, organization, subscription status, and any CV you upload): stored so the extension can function across sessions, and kept until you delete your account or request removal.</li>
+  </ul>
+
+  <h2>Third parties</h2>
+  <p>To provide the service, Linkwell shares data with the following:</p>
+  <ul>
+    <li><strong>Google:</strong> for sign-in and to identify your account.</li>
+    <li><strong>Our hosting provider (Vercel):</strong> which runs Linkwell's server.</li>
+    <li><strong>Our AI provider (OpenAI):</strong> which processes the profile information and your details to generate the email draft.</li>
+    <li><strong>Stripe:</strong> for processing subscription payments, if you subscribe.</li>
+  </ul>
+  <p>Linkwell does not sell your information or the information of anyone you draft emails to.</p>
+
+  <h2>Your choices and rights</h2>
+  <p>You can stop Linkwell from reading any profile simply by not opening the popup on it. You can clear your stored CV and other details from within the extension. To request deletion of your account and associated data, contact us at the address below and we will action it.</p>
+
+  <h2>Your responsibilities</h2>
+  <p>Linkwell is a tool you operate. Your use of Linkwell, and of LinkedIn through your own browser, remains subject to LinkedIn's User Agreement and applicable laws. You are responsible for how you use the drafts Linkwell helps you create.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>We may update this policy as the product changes. When we do, we will revise the date at the top of this page.</p>
+
+  <h2>Contact</h2>
+  <p>For any privacy questions or requests, email <a href="mailto:privacy@getlinkwell.org">privacy@getlinkwell.org</a>.</p>
+</main>
+
+<footer>
+  <span>&copy; 2026 Linkwell</span>
+  <span><a href="/">Back to site</a></span>
+</footer>
+
+</body>
+</html>
