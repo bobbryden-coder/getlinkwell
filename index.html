@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Linkwell. Write LinkedIn outreach emails in seconds</title>
+<title>Linkwell. Draft LinkedIn and email outreach in seconds</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -27,7 +27,6 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ---------- Nav ---------- */
   nav {
     display: flex;
     align-items: center;
@@ -84,7 +83,6 @@
   .btn-outline:hover { border-color: #c9cdd6; background: var(--bg-soft); }
   .btn-lg { padding: 12px 22px; font-size: 15px; border-radius: 12px; }
 
-  /* ---------- Hero ---------- */
   .hero {
     max-width: 980px;
     margin: 0 auto;
@@ -119,7 +117,7 @@
     font-size: 18px;
     line-height: 1.6;
     color: var(--ink-soft);
-    max-width: 560px;
+    max-width: 580px;
     margin: 0 auto 32px;
   }
   .hero-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
@@ -136,7 +134,6 @@
   .trust span { display: inline-flex; align-items: center; gap: 7px; }
   .trust .tick { color: var(--accent); font-weight: 700; }
 
-  /* ---------- Demo window ---------- */
   .demo-wrap {
     max-width: 1020px;
     margin: 44px auto 0;
@@ -174,7 +171,6 @@
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   }
 
-  /* Left: profile being read */
   .profile-pane {
     border-right: 1px solid var(--line);
     padding: 26px 24px;
@@ -194,25 +190,57 @@
     background: #fff;
     border: 1px solid var(--line);
     border-radius: 12px;
-    padding: 18px;
+    overflow: hidden;
   }
-  .profile-head { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+  .p-cover {
+    height: 52px;
+    background: linear-gradient(120deg, #a7b8d8 0%, #8ea4cc 45%, #6f88b8 100%);
+  }
+  .p-body { padding: 0 16px 16px; }
   .avatar {
-    width: 44px; height: 44px; border-radius: 50%;
+    width: 56px; height: 56px; border-radius: 50%;
     background: linear-gradient(135deg, #8f8af2, #5352e8);
-    color: #fff; font-weight: 700; font-size: 16px;
+    color: #fff; font-weight: 700; font-size: 18px;
     display: grid; place-items: center;
     flex-shrink: 0;
+    border: 3px solid #fff;
+    margin-top: -28px;
   }
-  .p-name { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
-  .p-title { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; line-height: 1.4; }
+  .p-name { font-weight: 700; font-size: 15.5px; letter-spacing: -0.01em; margin-top: 8px; }
+  .p-title { font-size: 12.5px; color: #2c2f36; margin-top: 2px; line-height: 1.45; }
+  .p-meta { font-size: 11.5px; color: var(--ink-faint); margin-top: 4px; }
+  .p-meta .conn { color: #4a6ba6; font-weight: 600; }
+  .p-actions { display: flex; gap: 7px; margin-top: 10px; }
+  .p-action {
+    font-size: 12px; font-weight: 600;
+    padding: 4px 14px;
+    border-radius: 999px;
+  }
+  .p-action.primary { background: #3a5da8; color: #fff; }
+  .p-action.secondary { border: 1px solid #3a5da8; color: #3a5da8; background: #fff; }
   .p-line { height: 8px; border-radius: 4px; background: #eceef2; margin-top: 10px; }
   .p-line.w80 { width: 80%; } .p-line.w95 { width: 95%; } .p-line.w60 { width: 60%; }
-  .p-tags { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
-  .p-tag {
-    font-size: 11px; font-weight: 600;
-    background: var(--accent-soft); color: var(--accent);
-    padding: 4px 9px; border-radius: 6px;
+  .case-chip {
+    margin-top: 16px;
+    background: #fff;
+    border: 1px dashed #c9cdf5;
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--ink-soft);
+  }
+  .case-chip .doc {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: 700;
+    flex-shrink: 0;
   }
   .scanline {
     position: absolute;
@@ -225,7 +253,7 @@
   }
   .reading-status {
     display: flex; align-items: center; gap: 8px;
-    margin-top: 18px;
+    margin-top: 16px;
     font-size: 12.5px; font-weight: 500;
     color: var(--ink-soft);
     min-height: 18px;
@@ -236,27 +264,37 @@
     border-top-color: var(--accent);
     border-radius: 50%;
   }
-  .status-done .spinner { border-color: var(--accent); }
 
-  /* Right: email compose */
-  .compose-pane { padding: 26px 26px 24px; display: flex; flex-direction: column; }
-  .compose-field {
-    display: flex; gap: 10px;
-    font-size: 13.5px;
-    padding: 9px 0;
+  .compose-pane { padding: 22px 26px 22px; display: flex; flex-direction: column; }
+  .mode-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-bottom: 16px;
     border-bottom: 1px solid var(--line);
-    align-items: baseline;
   }
-  .compose-field .k { color: var(--ink-faint); font-weight: 500; width: 56px; flex-shrink: 0; }
-  .compose-field .v { color: var(--ink); font-weight: 500; }
+  .mode-chip {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    background: #fff;
+  }
+  .mode-chip.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
   .compose-body {
-    font-size: 13.5px;
+    font-size: 14px;
     line-height: 1.75;
     color: #2c2f36;
-    padding-top: 16px;
+    padding-top: 18px;
     white-space: pre-wrap;
     flex: 1;
-    min-height: 235px;
+    min-height: 190px;
   }
   .caret {
     display: inline-block;
@@ -274,15 +312,20 @@
     border-top: 1px solid var(--line);
     margin-top: 14px;
   }
-  .open-gmail {
+  .char-count {
+    font-size: 12px;
+    color: var(--ink-faint);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .char-count .ok { color: var(--accent); }
+  .copy-btn {
     opacity: 0;
     transform: translateY(4px);
     transition: opacity .4s, transform .4s;
   }
-  .open-gmail.show { opacity: 1; transform: none; }
-  .gen-note { font-size: 12px; color: var(--ink-faint); font-weight: 500; }
+  .copy-btn.show { opacity: 1; transform: none; }
 
-  /* ---------- Sections below ---------- */
   section.features {
     border-top: 1px solid var(--line);
     background: var(--bg-soft);
@@ -295,7 +338,7 @@
     letter-spacing: -0.03em;
     margin-bottom: 14px;
   }
-  .features .lede { color: var(--ink-soft); font-size: 16.5px; max-width: 520px; line-height: 1.6; margin-bottom: 44px; }
+  .features .lede { color: var(--ink-soft); font-size: 16.5px; max-width: 560px; line-height: 1.6; margin-bottom: 44px; }
   .grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -319,7 +362,6 @@
   .card h3 { font-size: 15.5px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 8px; }
   .card p { font-size: 13.5px; color: var(--ink-soft); line-height: 1.65; }
 
-  /* ---------- Final CTA ---------- */
   .final {
     text-align: center;
     padding: 96px 28px;
@@ -350,7 +392,7 @@
     .split { grid-template-columns: 1fr; }
     .profile-pane { border-right: none; border-bottom: 1px solid var(--line); }
     .grid { grid-template-columns: 1fr; }
-    .compose-body { min-height: 280px; }
+    .compose-body { min-height: 230px; }
   }
   @media (prefers-reduced-motion: reduce) {
     .caret, .spinner { animation: none !important; }
@@ -381,22 +423,12 @@
 </nav>
 
 <header class="hero">
-  <div class="pill"><span class="dot"></span>New: Expert Outreach mode</div>
-  <h1>Outreach emails,<br>written while you browse.</h1>
-  <p class="sub">Linkwell reads any LinkedIn profile and drafts a personalized email in your voice. Built for recruiters, job seekers, and expert networks.</p>
-  <div class="hero-ctas">
-    <a class="btn btn-dark btn-lg" href="#">Add to Chrome, it's free</a>
-    <a class="btn btn-outline btn-lg" href="#how">See how it works</a>
-  </div>
-  <div class="trust">
-    <span><span class="tick">&#10003;</span>Reads LinkedIn profiles</span>
-    <span><span class="tick">&#10003;</span>CV aware drafts</span>
-    <span><span class="tick">&#10003;</span>Opens in Gmail and Outlook</span>
-  </div>
+  <div class="pill"><span class="dot"></span>New: LinkedIn message drafting</div>
+  <h1>Outreach messages,<br>written while you browse.</h1>
 </header>
 
 <div class="demo-wrap" id="how">
-  <div class="window" aria-label="Product demo showing an outreach email being generated">
+  <div class="window" aria-label="Product demo showing a LinkedIn outreach message being generated">
     <div class="window-bar">
       <span class="tl"></span><span class="tl"></span><span class="tl"></span>
       <span class="window-title">linkedin.com/in/sarah-chen</span>
@@ -407,21 +439,24 @@
         <div class="scanline" id="scanline"></div>
         <div class="pane-label">Profile detected</div>
         <div class="profile-card">
-          <div class="profile-head">
+          <div class="p-cover"></div>
+          <div class="p-body">
             <div class="avatar">SC</div>
-            <div>
-              <div class="p-name">Sarah Chen</div>
-              <div class="p-title">Director of Research, Meridian Partners</div>
+            <div class="p-name">Sarah Chen</div>
+            <div class="p-title">Director of Research at Meridian Partners | Healthcare M&amp;A</div>
+            <div class="p-meta">New York, United States &middot; <span class="conn">500+ connections</span></div>
+            <div class="p-actions">
+              <span class="p-action primary">Connect</span>
+              <span class="p-action secondary">Message</span>
             </div>
+            <div class="p-line w95"></div>
+            <div class="p-line w80"></div>
+            <div class="p-line w60"></div>
           </div>
-          <div class="p-line w95"></div>
-          <div class="p-line w80"></div>
-          <div class="p-line w60"></div>
-          <div class="p-tags">
-            <span class="p-tag">Healthcare</span>
-            <span class="p-tag">M&amp;A</span>
-            <span class="p-tag">12 yrs exp</span>
-          </div>
+        </div>
+        <div class="case-chip">
+          <span class="doc">PDF</span>
+          <span>Director of Research, job brief.pdf</span>
         </div>
         <div class="reading-status" id="readStatus">
           <span class="spinner" id="spinner"></span>
@@ -430,12 +465,16 @@
       </div>
 
       <div class="compose-pane">
-        <div class="compose-field"><span class="k">To</span><span class="v">sarah.chen@meridian.com</span></div>
-        <div class="compose-field"><span class="k">Subject</span><span class="v" id="subjectText"></span></div>
+        <div class="mode-chips">
+          <span class="mode-chip active">Connection note</span>
+          <span class="mode-chip">Message</span>
+          <span class="mode-chip">InMail</span>
+          <span class="mode-chip">Email</span>
+        </div>
         <div class="compose-body" id="bodyText"></div>
         <div class="compose-foot">
-          <span class="gen-note" id="genNote">Drafting with your profile and outreach goal</span>
-          <a class="btn btn-dark open-gmail" id="openBtn" href="#">Open in Gmail</a>
+          <span class="char-count"><span id="charNow" class="ok">0</span> / 300</span>
+          <a class="btn btn-dark copy-btn" id="copyBtn" href="#">Copy message</a>
         </div>
       </div>
 
@@ -445,23 +484,23 @@
 
 <section class="features" id="features">
   <div class="features-inner">
-    <h2>One click from profile to sent.</h2>
-    <p class="lede">No copy and paste, no blank page. Linkwell turns the profile you are looking at into a ready to send draft.</p>
+    <h2>From profile to sent, on any channel.</h2>
+    <p class="lede">No blank page, no copy and paste from a template. Linkwell turns the profile you are looking at, and the role or case you are working, into a ready to send draft.</p>
     <div class="grid">
       <div class="card">
         <div class="icon">1</div>
         <h3>Reads the profile for you</h3>
-        <p>Linkwell scrapes the role, experience, and background of whoever you are viewing, so every email references something real.</p>
+        <p>Linkwell reads the role, experience, and background of whoever you are viewing, so every message references something real about them.</p>
       </div>
       <div class="card">
         <div class="icon">2</div>
-        <h3>Writes in your voice</h3>
-        <p>Upload your CV once. Drafts draw on your background and your goal for reaching out, whether that is sourcing, applying, or expert calls.</p>
+        <h3>Knows the role or the case</h3>
+        <p>Drop in a job posting or a case brief, as text or a PDF, and every draft is matched to it. Built for recruiters filling roles and teams sourcing experts.</p>
       </div>
       <div class="card">
         <div class="icon">3</div>
-        <h3>Opens where you send</h3>
-        <p>Drafts land directly in a Gmail or Outlook compose window, addressed and ready. Edit if you like, then hit send.</p>
+        <h3>Drafts for the channel</h3>
+        <p>Connection notes that fit the 300 character limit, direct messages, InMail, or a full email that opens in Gmail or Outlook. You review, edit, and send.</p>
       </div>
     </div>
   </div>
@@ -486,24 +525,21 @@
 (function () {
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  var subjectEl = document.getElementById('subjectText');
   var bodyEl = document.getElementById('bodyText');
-  var openBtn = document.getElementById('openBtn');
-  var genNote = document.getElementById('genNote');
+  var copyBtn = document.getElementById('copyBtn');
+  var charNow = document.getElementById('charNow');
   var statusText = document.getElementById('statusText');
   var spinner = document.getElementById('spinner');
   var scanline = document.getElementById('scanline');
 
-  var subject = 'Expert call on healthcare M&A trends';
-  var body = 'Hi Sarah,\n\nI came across your profile while researching advisors in healthcare M&A, and your work at Meridian Partners stood out, particularly your focus on mid market transactions.\n\nI am putting together a short expert call series for a client project and would value 30 minutes of your perspective. We compensate for your time, and I am happy to work around your schedule.\n\nWould next week suit you?\n\nBest regards,\nBob';
+  var message = "Hi Sarah, I'm hiring a Director of Research for a healthcare M&A focused client and your work at Meridian stood out, particularly your mid market coverage. Open to a quick chat this week?";
 
   function setStatic() {
-    subjectEl.textContent = subject;
-    bodyEl.textContent = body;
+    bodyEl.textContent = message;
+    charNow.textContent = message.length;
     statusText.textContent = 'Profile read';
     spinner.style.display = 'none';
-    genNote.textContent = 'Draft ready';
-    openBtn.classList.add('show');
+    copyBtn.classList.add('show');
   }
 
   if (reduced) { setStatic(); return; }
@@ -514,25 +550,23 @@
     spinner.style.transform = 'rotate(' + spinAngle + 'deg)';
   }, 80);
 
-  function typeText(el, text, speed, withCaret, done) {
+  function typeText(el, text, speed, done) {
     var i = 0;
-    var caret = null;
-    if (withCaret) {
-      caret = document.createElement('span');
-      caret.className = 'caret';
-      el.appendChild(caret);
-    }
+    var caret = document.createElement('span');
+    caret.className = 'caret';
+    el.appendChild(caret);
     function step() {
       if (i < text.length) {
         var ch = document.createTextNode(text.charAt(i));
-        if (caret) { el.insertBefore(ch, caret); } else { el.appendChild(ch); }
+        el.insertBefore(ch, caret);
         i++;
+        charNow.textContent = i;
         var delay = speed + Math.random() * speed;
         var c = text.charAt(i - 1);
-        if (c === '.' || c === ',' || c === '\n') delay += 60;
+        if (c === '.' || c === ',') delay += 70;
         setTimeout(step, delay);
       } else {
-        if (caret) caret.remove();
+        caret.remove();
         if (done) done();
       }
     }
@@ -552,10 +586,9 @@
   }
 
   function cycle() {
-    subjectEl.textContent = '';
     bodyEl.textContent = '';
-    openBtn.classList.remove('show');
-    genNote.textContent = 'Drafting with your profile and outreach goal';
+    charNow.textContent = '0';
+    copyBtn.classList.remove('show');
     statusText.textContent = 'Reading profile';
     spinner.style.display = '';
 
@@ -563,14 +596,9 @@
       statusText.textContent = 'Profile read';
       spinner.style.display = 'none';
       setTimeout(function () {
-        typeText(subjectEl, subject, 22, false, function () {
-          setTimeout(function () {
-            typeText(bodyEl, body, 11, true, function () {
-              genNote.textContent = 'Draft ready';
-              openBtn.classList.add('show');
-              setTimeout(cycle, 5200);
-            });
-          }, 300);
+        typeText(bodyEl, message, 14, function () {
+          copyBtn.classList.add('show');
+          setTimeout(cycle, 5200);
         });
       }, 350);
     });
