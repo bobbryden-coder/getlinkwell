@@ -1,506 +1,681 @@
-/* Linkwell "talent hunt" animation.
-   One continuous pixel-dot world, 800 cells wide, that the camera pans across:
-   fisherman -> chameleon -> prospector -> spider -> (dive) whale -> back to the start.
-   Every cell is a dot in the Linkwell palette. Scenes are drawn procedurally plus a few hand-made sprites.
+/* Linkwell "talent hunt" band.
+   Scenes are drawn as smooth vector shapes into a tiny offscreen canvas (1 px per cell), then
+   re-rendered as a halftone: one dot per cell, dot size from coverage, colour snapped to the
+   Linkwell palette. The camera glides continuously through one looping world:
+   fisherman -> chameleon -> prospector -> spider -> whale -> back to the fisherman.
 */
 (function () {
   var canvas = document.getElementById('hunt');
   if (!canvas || !canvas.getContext) return;
-  var ctx = canvas.getContext('2d');
+  var out = canvas.getContext('2d');
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var TAU = Math.PI * 2;
 
-  var WORLD_W = 800, ROWS = 62, GROUND = 50, SEA = 52, SEABED = 105;
-  var PAL = { k: '#101114', K: '#5c6370', g: '#9aa1ad', a: '#5352e8', A: '#8f8af2', b: '#c9c8f7', c: '#eeeefc', w: '#ffffff' };
-
-  // ---------- canvas / dots ----------
-  var cols = 160, cell = 6, dpr = 1, dots = {}, buf = null;
-  function makeDots() {
-    var s = Math.ceil(cell * dpr);
-    Object.keys(PAL).forEach(function (k) {
-      var c = document.createElement('canvas'); c.width = c.height = s;
-      var g = c.getContext('2d'); g.fillStyle = PAL[k]; g.beginPath(); g.arc(s / 2, s / 2, s * 0.37, 0, Math.PI * 2); g.fill();
-      dots[k] = c;
-    });
-    var c = document.createElement('canvas'); c.width = c.height = s;
-    var g = c.getContext('2d'); g.fillStyle = '#e3e5ea'; g.beginPath(); g.arc(s / 2, s / 2, s * 0.15, 0, Math.PI * 2); g.fill();
-    dots['.'] = c;
+  // ---------- palette ----------
+  var P = {
+    ink: '#101114', ink2: '#5c6370', grey: '#9aa1ad', acc: '#5352e8', acc2: '#8f8af2',
+    light: '#c9c8f7', pale: '#e6e5fb', white: '#ffffff'
+  };
+  var NAMES = Object.keys(P);
+  var RGB = NAMES.map(function (k) { var h = P[k]; return [parseInt(h.substr(1, 2), 16), parseInt(h.substr(3, 2), 16), parseInt(h.substr(5, 2), 16)]; });
+  var nearestCache = new Int8Array(32768).fill(-1);
+  function nearest(r, g, b) {
+    var key = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+    var c = nearestCache[key];
+    if (c >= 0) return c;
+    var best = 0, bd = 1e9;
+    for (var i = 0; i < RGB.length; i++) {
+      var dr = r - RGB[i][0], dg = g - RGB[i][1], db = b - RGB[i][2];
+      var d = dr * dr * 0.3 + dg * dg * 0.59 + db * db * 0.11;
+      if (d < bd) { bd = d; best = i; }
+    }
+    nearestCache[key] = best;
+    return best;
   }
+
+  // ---------- layout ----------
+  var ROWS = 80, GY = 60, SURF = 61.5, S = 1.35, SURFG = GY + 1.5 * S;
+  var cols = 260, cell = 5.5, dpr = 1, NL = 8;
+  var off = document.createElement('canvas');
+  var g = off.getContext('2d', { willReadFrequently: true });
+  var sprites = [], bg = null;
+
   function resize() {
-    var cssW = canvas.clientWidth || 960;
-    cols = Math.max(96, Math.min(160, Math.round(cssW / 6.4)));
-    cell = cssW / cols;
+    var w = canvas.clientWidth || window.innerWidth;
+    cols = Math.max(150, Math.min(340, Math.round(w / 5.5)));
+    cell = w / cols;
     dpr = Math.min(2, window.devicePixelRatio || 1);
-    canvas.width = Math.round(cssW * dpr);
+    canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(ROWS * cell * dpr);
     canvas.style.height = (ROWS * cell) + 'px';
-    buf = new Array(cols * ROWS);
-    makeDots();
-  }
-
-  // ---------- camera and plotting ----------
-  var cam = { x: 0, y: 0 };
-  function wrap(x) { x = x % WORLD_W; return x < 0 ? x + WORLD_W : x; }
-  // Plot a world cell. Handles the world wrapping round at x = 800.
-  function px(x, y, col) {
-    x = Math.round(x); y = Math.round(y);
-    var vx = x - cam.x; vx = ((vx % WORLD_W) + WORLD_W) % WORLD_W;
-    var vy = y - cam.y;
-    if (vx < 0 || vx >= cols || vy < 0 || vy >= ROWS) return;
-    buf[vy * cols + vx] = col;
-  }
-  function line(x0, y0, x1, y1, col) {
-    var dx = x1 - x0, dy = y1 - y0, n = Math.max(Math.abs(dx), Math.abs(dy), 1);
-    for (var i = 0; i <= n; i++) px(x0 + dx * i / n, y0 + dy * i / n, col);
-  }
-  function sprite(sp, x, y, map) {
-    for (var r = 0; r < sp.length; r++) for (var c = 0; c < sp[r].length; c++) {
-      var ch = sp[r][c]; if (ch === '.') continue;
-      if (map && map[ch]) ch = map[ch];
-      px(x + c, y + r, ch);
+    canvas.parentNode && (canvas.parentNode.style.minHeight = (ROWS * cell) + 'px');
+    off.width = cols; off.height = ROWS;
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    var cs = cell * dpr, s = Math.ceil(cs);
+    sprites = RGB.map(function (rgb, ci) {
+      var lv = [];
+      for (var l = 0; l < NL; l++) {
+        var c = document.createElement('canvas'); c.width = c.height = s;
+        var x = c.getContext('2d');
+        x.fillStyle = P[NAMES[ci]];
+        x.beginPath(); x.arc(s / 2, s / 2, cs * (0.13 + 0.35 * l / (NL - 1)), 0, TAU); x.fill();
+        lv.push(c);
+      }
+      return lv;
+    });
+    bg = document.createElement('canvas'); bg.width = canvas.width; bg.height = canvas.height;
+    var b = bg.getContext('2d'); b.fillStyle = '#e8eaee';
+    for (var vy = 0; vy < ROWS; vy++) for (var vx = 0; vx < cols; vx++) {
+      var f = edgeFade(vx, vy);
+      if (f < 0.05) continue;
+      b.globalAlpha = f;
+      b.beginPath(); b.arc((vx + 0.5) * cs, (vy + 0.5) * cs, cs * 0.1, 0, TAU); b.fill();
     }
   }
-  function ease(t) { return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; }
+  function edgeFade(x, y) {
+    var e = cols * 0.08;
+    var fx = Math.min(1, (x + 0.5) / e, (cols - 0.5 - x) / e);
+    var fy = Math.min(1, (ROWS - 0.5 - y) / 12);
+    fx = Math.max(0, fx); fy = Math.max(0, fy);
+    return fx * fx * (3 - 2 * fx) * fy * fy * (3 - 2 * fy);
+  }
+
+  // ---------- drawing helpers (units = cells) ----------
+  function C(name, a) { g.globalAlpha = a == null ? 1 : a; g.fillStyle = g.strokeStyle = P[name] || name; }
+  function circ(x, y, r) { g.beginPath(); g.arc(x, y, Math.max(0.01, r), 0, TAU); g.fill(); }
+  function ring(x, y, r, w) { g.lineWidth = w; g.beginPath(); g.arc(x, y, r, 0, TAU); g.stroke(); }
+  function ell(x, y, rx, ry, rot) { g.beginPath(); g.ellipse(x, y, Math.max(0.01, rx), Math.max(0.01, ry), rot || 0, 0, TAU); g.fill(); }
+  function seg(x0, y0, x1, y1, w) { g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
+  function quad(x0, y0, cx, cy, x1, y1, w) { g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(cx, cy, x1, y1); g.stroke(); }
+  function poly(pts) { g.beginPath(); g.moveTo(pts[0], pts[1]); for (var i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.closePath(); g.fill(); }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function lerp(a, b, t) { return a + (b - a) * t; }
-  function hash(x, y) { var h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967295; }
-
-  // ---------- sprites ----------
-  var FISHER = [
-    '...kkkk...',
-    '..kkkkkk..',
-    '.kkkkkkkk.',
-    '...bbbb...',
-    '...bbbb...',
-    '....kk....',
-    '..kkkkkk..',
-    '.kkkkkkkk.',
-    '.k.kkkk.k.',
-    '.k.kkkk.k.',
-    '...kkkk...',
-    '...kkkk...',
-    '...k..k...',
-    '...k..k...',
-    '...k..k...',
-    '..kk..kk..'
-  ];
-  var FISH = [
-    '..aaaa....a',
-    '.awaaaaaa.a',
-    'aaaaaaaaaaa',
-    '.aaaaaaaa.a',
-    '..aaaa....a'
-  ];
-  var CHAM = [
-    '...........................aa.....',
-    '..........................aaaa....',
-    '.........................aaaaaa...',
-    '.........aaaaaaaaaa.....aaaaaaa...',
-    '......aaaaaaaaaaaaaaaa.aaaaaaaa...',
-    '....aaaaaaaaaaaaaaaaaaaaaaAAAaaa..',
-    '...aaaaaaaaaaaaaaaaaaaaaaaAwkAaa..',
-    '..aaaaaaaaaaaaaaaaaaaaaaaaaAAAaaaa',
-    '..aaaaaaaaaaaaaaaaaaaaaaaaaaaaakkk',
-    '...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.',
-    '....aaaaaaaaaaaaaaaaaaaaaaaaaaa...',
-    '...a..aa.......aa........aa..aa...',
-    '..a...aa.......aa........aa..aa...',
-    '.aa..aa.......aa..........aa..aa..',
-    'a..a..............................',
-    'a..a..............................',
-    '.aa...............................'
-  ];
-  var FLY = ['A..A', '.kk.'];
-  var MAN = [
-    '..kkkkkk..',
-    '..kkkkkk..',
-    '..kkkkkk..',
-    '..kAAAAk..',
-    'kkkkkkkkkk',
-    '...bbbb...',
-    '...bbbb...',
-    '....kk....',
-    '..kkkkkk..',
-    '.kkkkkkkk.',
-    '.kkkkkkkk.',
-    '.kkkkkkkk.',
-    '..kkkkkk..',
-    '...kkkk...',
-    '...k..k...',
-    '...k..k...',
-    '...k..k...',
-    '..kk..kk..'
-  ];
-  // Bent over the microscope: head and shoulders moved right and down, back arched.
-  var MAN_BENT = [
-    '..........',
-    '..........',
-    '..........',
-    '......kkkkkk',
-    '......kkkkkk',
-    '......kAAAAk',
-    '....kkkkkkkkkk',
-    '...kkkkbbbb...',
-    '..kkkkkbbbb...',
-    '.kkkkkkk......',
-    '.kkkkkkkk.....',
-    '.kkkkkkkk.....',
-    '..kkkkkk......',
-    '...kkkk.......',
-    '...k..k.......',
-    '...k..k.......',
-    '...k..k.......',
-    '..kk..kk......'
-  ];
-  var SCOPE = [
-    '.aa.....',
-    'aAAa....',
-    '.aa.....',
-    '.aa.....',
-    '.aaa....',
-    '..aaa...',
-    '...aa...',
-    '...aK...',
-    '...aKK..',
-    '...KKK..',
-    '.KKKKKK.',
-    'KKKKKKKK'
-  ];
-  var SPIDER = [
-    'k.k...k.k',
-    '.k.kkk.k.',
-    '..kkakk..',
-    'kkkkkkkkk',
-    '..kkkkk..',
-    '.k.kkk.k.',
-    'k.k...k.k'
-  ];
-
-  // ---------- static world ----------
-  // Land: x in [0,64) and [170,630). Water: [64,170) and [630,800).
-  function isLand(x) { return (x >= 0 && x < 64) || (x >= 170 && x < 630); }
-  function rockTop(x) { // prospector's outcrop, x 384..446
-    if (x < 384 || x > 446) return GROUND;
-    var t = (x - 384) / 62;
-    var h = Math.sin(t * Math.PI) * 20 + Math.sin(t * 17) * 1.6 + Math.sin(t * 31) * 0.9;
-    if (x < 394) h = Math.min(h, 4 + (x - 384) * 0.4); // low ledge for the microscope
-    return Math.round(GROUND - h);
-  }
-  var VEIN = [];
-  (function () { // zig-zag vein inside the rock
-    var x = 396, y = 49;
-    while (x < 440) { VEIN.push([x, y]); x += 1; y += (Math.floor(x / 4) % 2 === 0) ? -0.55 : -0.2; if (hash(x, 7) > 0.8) y -= 0.6; }
-  })();
-
-  function drawStatic(t) {
-    var i, vx, vy, x, y;
-    for (vy = 0; vy < ROWS; vy++) for (vx = 0; vx < cols; vx++) {
-      x = wrap(cam.x + vx); y = cam.y + vy;
-      var col = '.';
-      if (isLand(x)) {
-        if (y === GROUND) col = 'K';
-        else if (y > GROUND && y <= GROUND + 5 && (x + y) % 2 === 0) col = 'g';
-        else if (y > GROUND + 5 && hash(x, y) > 0.9) col = 'g';
-      } else {
-        if (y === SEA) col = ((Math.floor(x + t * 6) % 7) < 3) ? 'A' : 'b';
-        else if (y > SEA && y < SEABED) {
-          col = 'c';
-          if (hash(x, y) > 0.94 && Math.sin(t * 2 + x * 0.7 + y) > 0.3) col = 'b'; // shimmer
-        } else if (y >= SEABED) col = ((x + y) % 2 === 0) ? 'g' : (y === SEABED ? 'K' : '.');
-      }
-      // rock outcrop
-      if (x >= 384 && x <= 446) {
-        var top = rockTop(x);
-        if (y >= top && y <= GROUND + 5) col = (y === top || (x + y) % 2 === 0) ? 'K' : 'g';
-      }
-      buf[vy * cols + vx] = col;
-    }
-    // vein
-    for (i = 0; i < VEIN.length; i++) {
-      var sx = VEIN[i][0], sy = Math.round(VEIN[i][1]);
-      var glow = Math.sin(t * 3 - i * 0.35);
-      px(sx, sy, glow > 0.85 ? 'w' : glow > 0.2 ? 'A' : 'a');
-    }
-    // tree (chameleon scene)
-    for (y = 8; y <= GROUND; y++) for (x = 200; x <= 205; x++) px(x, y, (x === 200 || x === 205) ? 'k' : 'K');
-    for (x = 206; x <= 296; x++) { var by = 30 - Math.round((x - 206) / 60); px(x, by, 'K'); px(x, by + 1, 'k'); }
-    for (y = -2; y <= 22; y++) for (x = 186; x <= 222; x++) { // canopy
-      var dx = (x - 204) / 19, dy = (y - 9) / 11;
-      if (dx * dx + dy * dy <= 1 && hash(x, y) > 0.35) px(x, y, hash(x, y) > 0.85 ? 'A' : 'b');
-    }
-    for (x = 288; x <= 296; x++) for (y = 24; y <= 27; y++) if (hash(x, y) > 0.4) px(x, y, 'b'); // leaves at branch end
-    // fence posts (spider scene)
-    for (y = 22; y <= GROUND; y++) { px(522, y, 'K'); px(523, y, 'k'); px(596, y, 'k'); px(597, y, 'K'); }
-    for (x = 520; x <= 525; x++) px(x, 22, 'k');
-    for (x = 594; x <= 599; x++) px(x, 22, 'k');
-    // seaweed
-    [648, 652, 770, 776, 782].forEach(function (sx, n) {
-      for (y = SEABED - 1; y >= SEABED - 10 - n * 2; y--) px(sx + Math.round(Math.sin(t * 1.5 + y * 0.5 + n) * 1.5), y, (y % 2) ? 'A' : 'a');
+  function ease(t) { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
+  function easeOut(t) { t = clamp(t, 0, 1); return 1 - (1 - t) * (1 - t) * (1 - t); }
+  function easeIn(t) { t = clamp(t, 0, 1); return t * t * t; }
+  function prog(tau, a, b) { return clamp((tau - a) / (b - a), 0, 1); }
+  function hash(x, y) { var h = (x * 374761393 + (y || 0) * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
+  function sparkle(x, y, s, name) { C(name || 'acc', 1); seg(x - s, y, x + s, y, 0.35); seg(x, y - s, x, y + s, 0.35); }
+  function mixHex(a, b, t) {
+    var A = P[a] || a, B = P[b] || b;
+    var c = [0, 1, 2].map(function (i) {
+      var x = parseInt(A.substr(1 + i * 2, 2), 16), y = parseInt(B.substr(1 + i * 2, 2), 16);
+      return Math.round(lerp(x, y, t));
     });
-    // reeds by the fisherman's bank
-    for (y = GROUND - 1; y >= GROUND - 6; y--) { px(66 + Math.round(Math.sin(t + y) * 0.6), y, 'A'); px(69, y + 1, 'a'); }
+    return '#' + c.map(function (v) { return (v < 16 ? '0' : '') + v.toString(16); }).join('');
   }
 
-  // ---------- scene 1: fisherman ----------
-  function sceneFisher(u, t) {
-    var fx = 46, fy = GROUND - 16; // sprite top-left
-    sprite(FISHER, fx, fy);
-    var hand = { x: 55, y: 42 };
-    // rod angle: back swing, snap forward, hold, bend on the bite
-    var ang;
-    if (u < 0.9) ang = lerp(60, 135, ease(u / 0.9));
-    else if (u < 1.15) ang = lerp(135, 35, ease((u - 0.9) / 0.25));
-    else ang = 40;
-    var bend = (u > 4.3 && u < 5.4) ? Math.sin((u - 4.3) / 1.1 * Math.PI) : 0;
-    var rad = ang * Math.PI / 180, L = 15;
-    var tip = { x: hand.x + Math.cos(rad) * L, y: hand.y - Math.sin(rad) * L + bend * 7 };
-    // rod as a slightly curved line
-    for (var i = 0; i <= L; i++) {
-      var s = i / L;
-      var rx = lerp(hand.x, tip.x, s), ry = lerp(hand.y, tip.y, s) + bend * 5 * s * s;
-      px(rx, ry, 'k');
+  // ---------- world ----------
+  var SPACING = 290, L = SPACING * 5;
+  var X = { fisher: 145, cham: 435, prosp: 725, spider: 1015, whale: 1305 };
+  function isWater(wx) {
+    wx = ((wx % L) + L) % L;
+    return (wx >= X.fisher - 1 && wx < X.fisher + 98) || (wx >= X.whale - 120 && wx < X.whale + 140);
+  }
+  var cam = 0, camRaw = 0, speed = 14;
+
+  function drawBackdrop(t) {
+    var hx0 = camRaw * 0.35, ridge = [];
+    for (var sx = -2; sx <= cols + 2; sx += 1) {
+      var x = hx0 + sx;
+      ridge.push(sx, GY - 9 - 5 * Math.sin(x * 0.019) - 2.5 * Math.sin(x * 0.051 + 1.3) - 1.2 * Math.sin(x * 0.13));
     }
-    // bobber flight and landing
-    var B = { x: 112, y: SEA };
-    var bob = null;
-    if (u >= 1.0 && u < 1.9) {
-      var f = (u - 1.0) / 0.9;
-      bob = { x: lerp(tip.x, B.x, f), y: lerp(tip.y, B.y, f) - Math.sin(f * Math.PI) * 18 };
-    } else if (u >= 1.9) {
-      var dip = (u > 4.3 && u < 4.8) ? 2 : 0;
-      bob = { x: B.x, y: B.y + Math.round(Math.sin(t * 4) * 0.6) + dip };
+    C('pale', 0.45); poly([-2, GY + 1].concat(ridge).concat([cols + 2, GY + 1]));
+    C('light', 0.8); g.lineWidth = 0.6; g.beginPath(); g.moveTo(ridge[0], ridge[1]); for (var r = 2; r < ridge.length; r += 2) g.lineTo(ridge[r], ridge[r + 1]); g.stroke();
+    var cx0 = camRaw * 0.12;
+    for (var i = 0; i < 6; i++) {
+      var base = i * 140 + 40;
+      var cxp = ((base - cx0) % 840 + 840) % 840 - 80;
+      if (cxp < -40 || cxp > cols + 40) continue;
+      var cy = 7 + (i % 3) * 6;
+      C('pale', 1);
+      ell(cxp, cy, 9, 2.2); ell(cxp - 4, cy + 0.6, 5, 1.8); ell(cxp + 5, cy - 0.6, 5.5, 2.2); ell(cxp + 1, cy - 1.6, 4, 1.8);
     }
-    if (u >= 5.0) bob = null; // line reeled in with the fish
-    if (bob) {
-      // line from tip to bobber with a sag
-      var n = 30;
-      for (i = 0; i <= n; i++) {
-        var q = i / n;
-        var lx = lerp(tip.x, bob.x, q), ly = lerp(tip.y, bob.y, q) + Math.sin(q * Math.PI) * (u < 1.9 ? 2 : 6);
-        px(lx, ly, 'g');
+    // a few birds, drifting a little faster than the clouds
+    var bx0 = camRaw * 0.6 - t * 6;
+    for (i = 0; i < 4; i++) {
+      var bxp = ((i * 230 + 60 - bx0) % 920 + 920) % 920 - 40;
+      if (bxp < -10 || bxp > cols + 10) continue;
+      var byp = 14 + (i % 2) * 7 + Math.sin(t * 0.8 + i) * 2;
+      for (var f = 0; f < 3; f++) {
+        var fx = bxp + f * 4.5 - (f === 1 ? 1.5 : 0), fy = byp + (f === 1 ? -2 : 0) + (f === 2 ? 1.2 : 0);
+        var flap = Math.sin(t * 7 + i * 2 + f) * 1.1;
+        C('ink2', 0.9); g.lineWidth = 0.45; g.beginPath(); g.moveTo(fx - 1.6, fy - flap); g.quadraticCurveTo(fx - 0.6, fy - 0.5, fx, fy + 0.2); g.quadraticCurveTo(fx + 0.6, fy - 0.5, fx + 1.6, fy - flap); g.stroke();
       }
-      px(bob.x, bob.y, 'a'); px(bob.x, bob.y - 1, 'A');
     }
-    // ripples after landing
-    if (u > 1.9 && u < 3.2) {
-      var r = (u - 1.9) * 7;
-      for (var k = 0; k < 2; k++) { var rr = r - k * 3; if (rr > 0) { px(B.x - rr, SEA, 'A'); px(B.x + rr, SEA, 'A'); } }
+  }
+
+  function drawGround(t) {
+    var frac = cam - Math.floor(cam);
+    var x0 = Math.floor(cam);
+    for (var i = -2; i <= cols + 2; i++) {
+      var wx = x0 + i, sx = i - frac;
+      if (isWater(wx)) {
+        C('light', 0.38); g.fillRect(sx, SURFG, 1.04, ROWS - SURFG);
+        var wy = SURFG + 0.45 * Math.sin(wx * 0.35 + t * 2.2) + 0.25 * Math.sin(wx * 0.9 - t * 3.1);
+        C('acc2', 0.9); g.fillRect(sx, wy - 0.5, 1.04, 0.9);
+        if (hash(wx, Math.floor(t * 2)) > 0.97) { C('white', 1); g.fillRect(sx, wy - 0.5, 1, 1); }
+      } else {
+        C('grey', 0.16); g.fillRect(sx, GY + 1, 1.04, ROWS - GY);
+        C('ink2', 0.95); g.fillRect(sx, GY - 0.4, 1.04, 0.9);
+        for (var y = GY + 3; y < ROWS; y++) if (hash(wx, y) > 0.965) { C('grey', 0.6); g.fillRect(sx + 0.1, y, 0.8, 0.8); }
+        if (hash(wx, 99) > 0.78) {
+          var len = 1.6 + hash(wx, 7) * 3.2, sway = Math.sin(t * 1.6 + wx * 0.7) * 0.7;
+          C('acc2', 0.85); quad(sx + 0.5, GY - 0.3, sx + 0.5 + sway * 0.3, GY - len * 0.6, sx + 0.5 + sway, GY - len, 0.5);
+        }
+      }
     }
-    // fish
-    var fish = null;
-    if (u > 2.4 && u < 4.3) { var g = ease(clamp((u - 2.4) / 1.9, 0, 1)); fish = { x: lerp(142, 114, g), y: lerp(64, 56, g) + Math.sin(t * 3) * 0.6 }; }
-    else if (u >= 4.3 && u < 5.0) { fish = { x: 114 + Math.sin(t * 20) * 0.8, y: 55 }; }
-    else if (u >= 5.0 && u < 5.9) {
-      var h = (u - 5.0) / 0.9;
-      fish = { x: lerp(114, 60, h), y: lerp(54, 36, h) - Math.sin(h * Math.PI) * 14 };
-      if (h < 0.3) for (i = 0; i < 6; i++) px(114 + Math.cos(i) * 5 * h * 3, SEA - 1 - i * h * 3, 'b'); // splash
-      // taut line to the fish
-      line(tip.x, tip.y, fish.x + 5, fish.y + 2, 'g');
-    } else if (u >= 5.9) {
-      fish = { x: 57, y: 38 + Math.round(Math.sin(t * 6) * 0.5) };
-      line(tip.x, tip.y, fish.x + 5, fish.y, 'g');
-      // little sparkles of success
-      for (i = 0; i < 4; i++) if (Math.sin(t * 5 + i * 1.7) > 0.6) px(50 + i * 5, 28 + (i % 2) * 3, 'w');
+  }
+
+  var BUSHES = [X.fisher - 120, X.fisher + 150, X.cham + 125, X.prosp - 115, X.prosp + 140, X.spider - 120, X.spider + 120];
+  function drawBushes(t) {
+    for (var b = 0; b < BUSHES.length; b++) {
+      var dx = ((BUSHES[b] - cam) % L + L) % L; if (dx > L - 40) dx -= L;
+      if (dx < -20 || dx > cols + 20) continue;
+      for (var k = 0; k < 14; k++) {
+        var a = hash(b * 31 + k, 61) * Math.PI, d = hash(b * 31 + k, 62);
+        var x = dx + Math.cos(a) * (2 + d * 5), y = GY - 1 - Math.sin(a) * (1 + d * 3.5);
+        C(['acc', 'acc2', 'light'][k % 3], 1); ell(x, y + Math.sin(t * 1.2 + k) * 0.15, 1.6, 1.2);
+      }
+      if (b % 2 === 0) { C('ink2', 1); ell(dx + 8, GY - 0.8, 1.8, 1.1); C('grey', 1); ell(dx + 7.6, GY - 1.3, 0.8, 0.4); }
+    }
+  }
+
+  // ---------- scene: fisherman ----------
+  function sceneFisher(tau, t) {
+    var fx = -9, r, sw = 0, rx = 0;
+    for (r = 0; r < 4; r++) {
+      rx = 1.5 + r * 1.3; sw = Math.sin(t * 1.4 + r) * 0.6;
+      C(r % 2 ? 'acc' : 'acc2', 0.9); quad(rx, SURF + 1, rx + sw * 0.4, SURF - 4, rx + sw, SURF - 6.5 - r % 2 * 1.5, 0.45);
+    }
+    C('ink2', 0.9); ell(rx + sw, SURF - 7.5, 0.4, 1.1);
+    var hipY = GY - 7.5;
+    C('ink'); seg(fx - 0.9, hipY, fx - 1.3, GY - 0.6, 1.5); seg(fx + 0.9, hipY, fx + 1.5, GY - 0.6, 1.5);
+    C('ink2'); ell(fx - 1.3, GY - 0.5, 1.3, 0.6); ell(fx + 1.7, GY - 0.5, 1.3, 0.6);
+    C('acc');
+    g.beginPath(); g.moveTo(fx - 2.4, hipY + 0.6); g.lineTo(fx - 2.1, GY - 14.8);
+    g.quadraticCurveTo(fx, GY - 16.4, fx + 2.1, GY - 14.8); g.lineTo(fx + 2.5, hipY + 0.6); g.closePath(); g.fill();
+    C('acc2'); g.fillRect(fx - 1.5, GY - 12, 1.3, 1.3); g.fillRect(fx + 0.5, GY - 12, 1.3, 1.3);
+    C('light'); circ(fx + 0.4, GY - 17.5, 2);
+    C('ink2'); ell(fx + 1.2, GY - 16.3, 1.2, 0.7);
+    C('ink2'); ell(fx + 0.3, GY - 19.1, 3.5, 0.75); ell(fx + 0.3, GY - 20.4, 2, 1.5);
+    var H = { x: fx + 3.8, y: GY - 11.4 };
+    C('acc'); seg(fx + 1.2, GY - 14.4, fx + 2.6, GY - 12.1, 1.3); seg(fx + 2.6, GY - 12.1, H.x, H.y, 1.2);
+
+    var th;
+    if (tau < -0.8) th = 78 + Math.sin(t * 1.2) * 2;
+    else if (tau < 0) th = lerp(78, 122, ease(prog(tau, -0.8, 0)));
+    else if (tau < 0.35) th = lerp(122, 24, easeOut(prog(tau, 0, 0.35)));
+    else if (tau < 4.3) th = lerp(24, 32, ease(prog(tau, 0.35, 1.6)));
+    else th = lerp(32, 74, easeOut(prog(tau, 4.3, 4.9)));
+    var bend = 0;
+    if (tau > 3.5 && tau < 5.2) bend = Math.sin(prog(tau, 3.5, 5.2) * Math.PI) * (2.4 + Math.sin(t * 24) * 0.4);
+    if (tau >= 5.2) bend = 1.1 + Math.sin(t * 5) * 0.25;
+    var rad = th * Math.PI / 180, dx = Math.cos(rad), dy = -Math.sin(rad), Lr = 16;
+    var butt = { x: H.x - dx * 2.5, y: H.y - dy * 2.5 };
+    var mid = { x: H.x + dx * Lr * 0.5 + bend * 0.6, y: H.y + dy * Lr * 0.5 + bend };
+    var tip = { x: H.x + dx * Lr + bend * 0.4, y: H.y + dy * Lr + bend * 2.2 };
+    C('ink'); quad(butt.x, butt.y, mid.x, mid.y, tip.x, tip.y, 0.55);
+    C('ink2'); circ(H.x - dx * 0.8, H.y - dy * 0.8, 0.8);
+    C('light'); circ(H.x, H.y, 0.7);
+
+    var B = { x: 38, y: SURF - 0.3 }, bob = null, sag = 2.5;
+    if (tau < 0.25) bob = { x: tip.x, y: tip.y + 3 };
+    else if (tau < 1.25) {
+      var f = prog(tau, 0.25, 1.25);
+      bob = { x: lerp(tip.x, B.x, f), y: lerp(tip.y, B.y, f) - Math.sin(f * Math.PI) * 13 }; sag = 0.5;
+    } else if (tau < 4.5) {
+      var dip = tau > 3.5 ? 2.2 * Math.sin(prog(tau, 3.5, 4.5) * Math.PI) : (tau > 3.0 ? Math.sin(t * 18) * 0.4 : 0);
+      bob = { x: B.x, y: B.y + Math.sin(t * 2.6) * 0.3 + dip };
+    }
+    if (bob) {
+      C('grey', 0.9); quad(tip.x, tip.y, (tip.x + bob.x) / 2, Math.max(tip.y, bob.y) + sag, bob.x, bob.y, 0.3);
+      C('acc'); circ(bob.x, bob.y, 0.75); C('white'); circ(bob.x, bob.y - 0.4, 0.35);
+    }
+    [1.25, 1.7, 3.6].forEach(function (s) {
+      var p = prog(tau, s, s + 1.4);
+      if (p > 0 && p < 1) { C('acc', (1 - p) * 0.9); g.lineWidth = 0.35; g.beginPath(); g.ellipse(B.x, SURF + 0.2, 1 + p * 9, 0.4 + p * 1.6, 0, 0, TAU); g.stroke(); }
+    });
+    var fish = null, fang = 0;
+    if (tau < 3.5) {
+      var s = ease(prog(tau, 0.8, 3.3));
+      fish = { x: lerp(66, 40.5, s) + Math.sin(t * 1.2) * (1 - s) * 2, y: lerp(SURF + 6.5, SURF + 3.2, s) + Math.sin(t * 2) * 0.4 };
+    } else if (tau < 4.6) {
+      fish = { x: 40.5 + Math.sin(t * 30) * 0.4, y: SURF + 2.6 - prog(tau, 3.5, 4.6) * 1.2 };
+    } else if (tau < 5.4) {
+      var h = easeOut(prog(tau, 4.6, 5.4));
+      fish = { x: lerp(40, tip.x + 0.3, h), y: lerp(SURF, tip.y + 5.5, h) - Math.sin(h * Math.PI) * 9 };
+      fang = lerp(0, -Math.PI / 2, h);
+      C('grey', 0.9); seg(tip.x, tip.y, fish.x, fish.y - 2, 0.3);
+    } else {
+      fish = { x: tip.x + Math.sin(t * 3) * 0.8, y: tip.y + 5.5 };
+      fang = -Math.PI / 2 + Math.sin(t * 3) * 0.12 + Math.sin(t * 9) * 0.12;
+      C('grey', 0.9); seg(tip.x, tip.y, fish.x, fish.y - 2.6, 0.3);
     }
     if (fish) {
-      if (u >= 5.0) { // fish in the air: flipped vertical, head up
-        for (var r2 = 0; r2 < FISH.length; r2++) for (var c2 = 0; c2 < FISH[r2].length; c2++) {
-          var ch = FISH[r2][c2]; if (ch !== '.') px(fish.x + r2, fish.y + c2, ch);
-        }
-      } else sprite(FISH, fish.x, fish.y);
+      g.save(); g.translate(fish.x, fish.y); g.rotate(fang + Math.PI);
+      var wag = Math.sin(t * 10) * 0.6;
+      C('acc'); ell(0, 0, 3.4, 1.35);
+      poly([2.6, 0, 5 + wag * 0.3, -1.6 + wag, 5 - wag * 0.3, 1.6 + wag]);
+      C('acc2'); ell(0.4, -0.9, 1.2, 0.5, -0.2); ell(-0.2, 0.5, 2.2, 0.4);
+      C('white'); circ(-2.1, -0.35, 0.38); C('ink'); circ(-2.2, -0.35, 0.18);
+      g.restore();
+    }
+    if (tau > 4.6 && tau < 5.8) {
+      var q = tau - 4.6;
+      for (var i = 0; i < 16; i++) {
+        var vx = (hash(i, 3) - 0.5) * 14, vy = -8 - hash(i, 4) * 10;
+        var x = 40 + vx * q, y = SURF + vy * q + 16 * q * q;
+        if (y < SURF + 0.5) { C(i % 3 ? 'acc2' : 'acc', 1 - q / 1.2); circ(x, y, 0.45); }
+      }
+    }
+    if (tau > 5.6 && tau < 8) {
+      for (var k = 0; k < 4; k++) {
+        var a = t * 2 + k * TAU / 4, rr = 6 + Math.sin(t * 3 + k) * 0.8;
+        if (Math.sin(t * 6 + k * 2) > -0.2) sparkle(tip.x + Math.cos(a) * rr, tip.y + 5 + Math.sin(a) * rr * 0.6, 0.8, 'acc');
+      }
     }
   }
 
-  // ---------- scene 2: chameleon ----------
-  function sceneCham(u, t) {
-    // the chameleon slowly changes colour, as chameleons do
-    var phase = (Math.sin(t * 0.8) + 1) / 2;
-    var body = phase < 0.33 ? 'a' : phase < 0.66 ? 'A' : 'a';
-    if (u > 2.2 && u < 3.0) body = 'b'; // flush after the catch
-    var cx = 208, cy = 18;
-    var blink = (u > 2.3 && u < 2.55);
-    sprite(CHAM, cx, cy, { a: body, w: blink ? body : 'w', k: blink ? body : 'k' });
-    // pupil tracks the fly before the strike
-    var mouth = { x: cx + 33, y: cy + 8 };
-    var fly = { x: 282 + Math.sin(t * 9) * 1.2, y: 24 + Math.sin(t * 13) * 1.1 };
-    var caught = u >= 1.85;
-    var tongueTip = null;
-    if (u >= 1.6 && u < 1.85) tongueTip = lerp(0, 1, ease((u - 1.6) / 0.25));
-    else if (u >= 1.85 && u < 2.15) tongueTip = lerp(1, 0, ease((u - 1.85) / 0.3));
-    if (tongueTip !== null) {
-      var tx = lerp(mouth.x, fly.x, tongueTip), ty = lerp(mouth.y, fly.y, tongueTip);
-      line(mouth.x, mouth.y, tx, ty, 'A');
-      px(tx, ty, 'a'); px(tx + 1, ty, 'a'); px(tx, ty + 1, 'a'); px(tx + 1, ty + 1, 'a');
-      if (u >= 1.85) sprite(FLY, tx, ty - 1); // fly stuck to the tongue
+  // ---------- scene: chameleon ----------
+  function sceneCham(tau, t) {
+    var tx = -32, i, b, c, s;
+    C('ink2'); g.beginPath(); g.moveTo(tx - 2.6, GY); g.quadraticCurveTo(tx - 1.6, GY - 15, tx - 2.2, GY - 31);
+    g.lineTo(tx + 2.2, GY - 31); g.quadraticCurveTo(tx + 1.6, GY - 18, tx + 3, GY); g.closePath(); g.fill();
+    C('ink', 0.6); for (b = 0; b < 5; b++) seg(tx - 0.6 + (b % 2), GY - 4 - b * 5, tx - 0.4 + (b % 2), GY - 6.5 - b * 5, 0.3);
+    C('ink2'); g.lineWidth = 1.7; g.beginPath(); g.moveTo(tx + 1, GY - 20); g.bezierCurveTo(tx + 18, GY - 21, tx + 34, GY - 19, tx + 58, GY - 18.5); g.stroke();
+    g.lineWidth = 0.8; g.beginPath(); g.moveTo(tx + 44, GY - 19); g.quadraticCurveTo(tx + 50, GY - 24, tx + 55, GY - 25.5); g.stroke();
+    for (i = 0; i < 90; i++) {
+      var a = hash(i, 11) * TAU, d = Math.sqrt(hash(i, 12)) * 11;
+      var x = tx + Math.cos(a) * d * 1.35 + Math.sin(t * 0.9 + i * 0.3) * 0.35, y = GY - 33 + Math.sin(a) * d * 0.62;
+      var sh = (y - (GY - 33)) / 8 + hash(i, 15) * 0.6;
+      C(sh > 0.7 ? 'acc' : sh > 0.1 ? 'acc2' : 'light', 1); ell(x, y, 1.5 + hash(i, 13) * 1.1, 1.1 + hash(i, 14) * 0.6, hash(i, 16) * 3);
     }
-    if (!caught) sprite(FLY, fly.x, fly.y);
-    else if (u > 2.15 && u < 2.3) { px(mouth.x - 2, mouth.y - 1, 'w'); } // gulp
-    // thought: a small '!' sparkle as it spots the fly
-    if (u > 1.0 && u < 1.5) { px(cx + 28, cy - 4, 'a'); px(cx + 28, cy - 3, 'a'); px(cx + 28, cy - 1, 'a'); }
+    for (i = 0; i < 6; i++) { C(i % 2 ? 'light' : 'acc2', 0.9); ell(tx + 53 + i * 1.2, GY - 26 + Math.sin(t + i) * 0.3 - (i % 3), 1.4, 0.7, -0.5); }
+
+    var cx = tx + 24, cy = GY - 20.1;
+    var step = tau < 0 ? Math.sin(t * 2.2) * 0.35 : 0;
+    var shift = (Math.sin(t * 0.7) + 1) / 2;
+    var flush = tau > 3.3 && tau < 5 ? Math.sin(prog(tau, 3.3, 5) * Math.PI) : 0;
+    var body = mixHex(mixHex('acc', 'acc2', shift * 0.7), 'light', flush * 0.6);
+    var dark = mixHex(body, 'ink', 0.35);
+    var fly = flyPos(tau, t, tx);
+    g.save(); g.translate(cx, cy + step * 0.2);
+    g.globalAlpha = 1; g.fillStyle = g.strokeStyle = body; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(-9, -2.4); g.quadraticCurveTo(-12.5, -1, -12.8, 1.6);
+    for (s = 0; s <= 1.0001; s += 0.05) { var an = Math.PI * 0.15 + s * TAU * 1.15, rr = 2.4 * (1 - s * 0.75); g.lineTo(-10.9 + Math.cos(an) * rr, 2.4 + Math.sin(an) * rr); }
+    g.stroke();
+    g.lineWidth = 0.9; g.strokeStyle = dark;
+    g.beginPath(); g.moveTo(3, -1.6); g.lineTo(4.4 + step, -0.3); g.lineTo(3.6 + step, 0.4); g.stroke();
+    g.beginPath(); g.moveTo(-5.5, -1.6); g.lineTo(-6.6 - step, -0.3); g.lineTo(-5.6 - step, 0.4); g.stroke();
+    g.fillStyle = body;
+    g.beginPath(); g.moveTo(-9.5, -2.4);
+    g.bezierCurveTo(-8.6, -8.4, 0.5, -9.4, 4, -6.6);
+    g.lineTo(5.6, -10.2); g.lineTo(8.8, -5.4);
+    g.quadraticCurveTo(10.9, -4, 10.3, -2.5);
+    g.quadraticCurveTo(7.2, -0.9, 3, -1.3);
+    g.bezierCurveTo(-1, -0.1, -6.2, -0.1, -9.5, -2.4); g.closePath(); g.fill();
+    g.save(); g.clip(); g.fillStyle = dark; g.globalAlpha = 0.55; ell(-1, 0.6, 11, 2.4); g.restore();
+    g.globalAlpha = 1; g.strokeStyle = mixHex(body, 'white', 0.45); g.lineWidth = 0.5;
+    g.beginPath(); g.moveTo(-7.5, -3); g.quadraticCurveTo(-1, -5.6, 3.5, -3.2); g.stroke();
+    g.fillStyle = dark; for (c = 0; c < 7; c++) circ(-6.8 + c * 1.6, -6.9 - Math.sin(c / 6 * Math.PI) * 1.6, 0.32);
+    var eye = { x: 6.4, y: -5.2 };
+    var lx = fly.x - (cx + eye.x), ly = fly.y - (cy + eye.y), ld = Math.sqrt(lx * lx + ly * ly) || 1;
+    var blink = (tau > 3.4 && tau < 3.6) || (Math.sin(t * 0.9) > 0.995);
+    g.fillStyle = mixHex(body, 'white', 0.3); circ(eye.x, eye.y, 1.6);
+    if (!blink) { C('white'); circ(eye.x + lx / ld * 0.55, eye.y + ly / ld * 0.55, 0.7); C('ink'); circ(eye.x + lx / ld * 0.75, eye.y + ly / ld * 0.75, 0.42); }
+    else { g.globalAlpha = 1; g.strokeStyle = dark; seg(eye.x - 1.2, eye.y, eye.x + 1.2, eye.y, 0.4); }
+    if (tau > 3.15 && tau < 3.6) { g.globalAlpha = 1; g.fillStyle = mixHex(body, 'white', 0.25); ell(6, -1.2, 1.6 * Math.sin(prog(tau, 3.15, 3.6) * Math.PI), 0.9); }
+    g.restore();
+
+    var mouth = { x: cx + 10.2, y: cy - 2.8 };
+    var ext = 0;
+    if (tau > 2.6 && tau < 2.78) ext = easeOut(prog(tau, 2.6, 2.78));
+    else if (tau >= 2.78 && tau < 3.15) ext = 1 - easeIn(prog(tau, 2.78, 3.15));
+    var caught = tau >= 2.78;
+    if (ext > 0) {
+      var target = flyPos(2.78, t, tx);
+      var ex = lerp(mouth.x, target.x, ext), ey = lerp(mouth.y, target.y, ext);
+      C('light'); quad(mouth.x, mouth.y, (mouth.x + ex) / 2, (mouth.y + ey) / 2 + 1.2 * ext, ex, ey, 0.75);
+      C('acc'); circ(ex, ey, 1);
+      if (caught) drawFly(ex + 0.3, ey - 0.6, t);
+    }
+    if (!caught) drawFly(fly.x, fly.y, t);
+    if (tau > 1.6 && tau < 2.5) { C('acc'); g.fillRect(cx + 5.9, cy - 15, 0.9, 3); circ(cx + 6.35, cy - 10.8, 0.5); }
+  }
+  function flyPos(tau, t, tx) {
+    var k = ease(prog(tau, -4, 2.2));
+    var bx = lerp(tx + 66, tx + 46, k), by = lerp(GY - 30, GY - 24, k);
+    var amp = lerp(5, 1.8, k);
+    return { x: bx + Math.sin(t * 2.3) * amp + Math.sin(t * 5.1) * 0.6, y: by + Math.sin(t * 3.7) * amp * 0.6 + Math.cos(t * 6.3) * 0.5 };
+  }
+  function drawFly(x, y, t) {
+    var f = Math.sin(t * 60) > 0;
+    C('light', 0.95); ell(x - 0.5, y - 0.9 - (f ? 0.3 : 0), 1, f ? 0.45 : 0.7, -0.5); ell(x + 0.5, y - 0.9 - (f ? 0 : 0.3), 1, f ? 0.7 : 0.45, 0.5);
+    C('ink'); ell(x, y, 0.85, 0.6); C('acc'); circ(x + 0.7, y - 0.1, 0.3);
   }
 
-  // ---------- scene 3: prospector ----------
-  function sceneProspector(u, t) {
-    sprite(SCOPE, 383, 34);
-    var bent = u > 1.0 && u < 3.8;
-    if (bent) sprite(MAN_BENT, 368, GROUND - 18);
-    else {
-      var hatLift = (u > 4.0 && u < 4.5) ? 2 : 0;
-      // draw body then hat separately so the hat can lift (a classy tip of the hat)
-      sprite(MAN.slice(5), 368, GROUND - 13);
-      sprite(MAN.slice(0, 5), 368, GROUND - 18 - hatLift);
+  // ---------- scene: prospector ----------
+  var ROCK = [];
+  (function () {
+    for (var x = 0; x <= 60; x += 1) {
+      var u = x / 60;
+      var h = 27 * Math.pow(Math.sin(u * Math.PI), 0.8) + (x > 3 && x < 57 ? (hash(x, 5) - 0.5) * 2.2 : 0);
+      if (u > 0.42 && u < 0.6) h += 3 * Math.sin((u - 0.42) / 0.18 * Math.PI);
+      ROCK.push(10 + x, GY - Math.max(0, h));
     }
-    // the moment of discovery
-    if (u > 2.6 && u < 3.8) {
-      var s = (u - 2.6);
-      var hx = 379, hy = GROUND - 23;
-      px(hx, hy, 'a'); px(hx, hy + 1, 'a'); px(hx, hy + 2, 'a'); px(hx, hy + 4, 'a');
-      for (var i = 0; i < 5; i++) if (Math.sin(t * 6 + i) > 0.3) px(hx - 4 + i * 2, hy - 2 - (i % 2) * 2, 'w');
-      // vein lights up
-      for (i = 0; i < VEIN.length; i++) if ((i + Math.floor(t * 12)) % 5 === 0) { px(VEIN[i][0], Math.round(VEIN[i][1]) - 1, 'w'); }
+  })();
+  function veinPt(s, wob) {
+    var x0 = 15, y0 = GY - 3, x1 = 64, y1 = GY - 20;
+    return { x: lerp(x0, x1, s), y: lerp(y0, y1, s) - Math.sin(s * Math.PI) * 6 + Math.sin(s * 19) * 0.9 + (wob || 0) };
+  }
+  function veinPath(w) {
+    g.lineWidth = w; g.beginPath();
+    for (var s = 0; s <= 1.0001; s += 0.02) { var p = veinPt(s); if (s === 0) g.moveTo(p.x, p.y); else g.lineTo(p.x, p.y); }
+    g.stroke();
+  }
+  function sceneProsp(tau, t) {
+    var i, k;
+    var pts = [10, GY + 0.3].concat(ROCK).concat([70, GY + 0.3]);
+    g.globalCompositeOperation = 'destination-out'; C('ink', 1); poly(pts); g.globalCompositeOperation = 'source-over';
+    C('ink2', 0.6); poly(pts);
+    g.save(); g.beginPath(); g.moveTo(pts[0], pts[1]); for (i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.closePath(); g.clip();
+    C('ink2', 0.85); for (k = 0; k < 6; k++) quad(8, GY - 4 - k * 4.5, 40, GY - 9 - k * 4.5 + (k % 2) * 3, 72, GY - 6 - k * 4.5, 0.35);
+    var look = tau > 1.0 && tau < 4.2 ? Math.sin(prog(tau, 1.0, 4.2) * Math.PI) : 0;
+    var glow = 0.5 + 0.5 * Math.sin(t * 1.6);
+    C('light', 0.5 + 0.4 * Math.max(look, glow * 0.5)); veinPath(3.6 + look * 1.5);
+    C('acc', 1); veinPath(2.1);
+    C('acc2', 1); veinPath(0.8);
+    for (k = 0; k < 9; k++) {
+      var p = veinPt((t * 0.07 + k / 9) % 1), tw = Math.sin(t * 5 + k * 1.7);
+      if (tw > 0.2) { C('white', 1); circ(p.x, p.y, 0.55 * tw + 0.15); }
     }
-    // lens glint between prospector and vein
-    if (bent) { px(392 + Math.round(Math.sin(t * 7)), 40, 'b'); }
+    for (k = 0; k < 14; k++) { var q = veinPt(hash(k, 21), (hash(k, 22) - 0.5) * 4); C('acc', 0.9); ell(q.x, q.y, 0.7, 0.45, hash(k, 23) * 3); }
+    g.restore();
+    C('ink2', 1); g.lineWidth = 0.5; g.beginPath(); g.moveTo(ROCK[0], ROCK[1]); for (i = 2; i < ROCK.length; i += 2) g.lineTo(ROCK[i], ROCK[i + 1]); g.stroke();
+    C('ink2'); seg(11, GY - 0.5, 15.5, GY - 9, 0.55);
+    C('ink'); g.lineWidth = 0.8; g.beginPath(); g.moveTo(13.4, GY - 10.6); g.quadraticCurveTo(15.6, GY - 9.6, 17.6, GY - 7.4); g.stroke();
+    C('acc', 0.9); circ(17, GY - 0.6, 0.5); circ(19.2, GY - 0.4, 0.35); circ(8, GY - 0.5, 0.4);
+
+    // the gentleman
+    var gx = -16, hipY = GY - 8.2;
+    var bendT = tau < 0 ? 0 : tau < 0.9 ? ease(tau / 0.9) : tau < 3.6 ? 1 : 1 - ease(prog(tau, 3.6, 4.3));
+    var ang = bendT * 0.6;
+    var lift = 0, tilt = 0;
+    if (tau > 4.4 && tau < 5.8) { var hp = Math.sin(prog(tau, 4.4, 5.8) * Math.PI); lift = hp * 3.2; tilt = hp * 0.45; }
+    var idleSway = tau < 0 ? Math.sin(t * 1.3) * 0.04 : 0;
+    C('ink2'); seg(gx - 0.9, hipY, gx - 1.1, GY - 0.6, 1.35); seg(gx + 0.9, hipY, gx + 1.3, GY - 0.6, 1.35);
+    C('ink'); ell(gx - 0.8, GY - 0.45, 1.3, 0.55); ell(gx + 1.7, GY - 0.45, 1.3, 0.55);
+    g.save(); g.translate(gx, hipY); g.rotate(ang + idleSway);
+    C('ink'); poly([-2.1, -1, -3.8, 4.6, -2.4, 4.2, -1.2, 2.2]);
+    g.beginPath(); g.moveTo(-2.3, 0.6); g.lineTo(-2.2, -6.8); g.quadraticCurveTo(0, -8.3, 2.2, -6.8); g.lineTo(2.3, 0.2); g.closePath(); g.fill();
+    C('pale'); poly([0.1, -7.6, 1.8, -7.3, 1.1, -3.3]);
+    C('acc'); ell(0.6, -7.5, 0.55, 0.35, 0.4); ell(1.5, -7.5, 0.55, 0.35, -0.4);
+    C('acc2'); circ(1.5, -4.6, 0.25); circ(1.6, -3.1, 0.25);
+    C('light'); circ(0.7, -9.7, 1.9);
+    C('ink2'); g.lineWidth = 0.4; g.beginPath(); g.moveTo(0.9, -8.7); g.quadraticCurveTo(1.9, -9.2, 2.8, -8.4); g.stroke();
+    C('acc'); ring(1.8, -10.1, 0.62, 0.28); seg(1.3, -9.6, 0.9, -7.8, 0.12);
+    var ex1 = lerp(2.2, 3.6, bendT), ey1 = lerp(-4.2, -6.2, bendT), hx = lerp(2.4, 4.6, bendT), hy = lerp(-2.6, -4.2, bendT);
+    C('ink'); seg(1, -6.4, ex1, ey1, 1.1); seg(ex1, ey1, hx, hy, 1);
+    C('light'); circ(hx, hy, 0.5);
+    g.save(); g.translate(0.5, -11.4 - lift); g.rotate(-tilt);
+    C('ink'); ell(0, 0, 2.9, 0.5); g.fillRect(-1.75, -4.6, 3.5, 4.5); ell(0, -4.6, 1.75, 0.4);
+    C('acc'); g.fillRect(-1.75, -1.3, 3.5, 0.75);
+    g.restore();
+    g.restore();
+    if (lift > 0) {
+      var hatX = gx + 0.5 + Math.sin(ang) * 11.4, hatY = hipY - Math.cos(ang) * 11.4 - lift;
+      C('ink'); seg(gx - 0.8, hipY - 6.3, hatX - 1.4, hatY + 0.4, 1); C('light'); circ(hatX - 1.4, hatY + 0.2, 0.5);
+    }
+    // microscope on a small tripod
+    var mx = -6.2;
+    C('ink2'); seg(mx, GY - 7.6, mx - 2.4, GY - 0.3, 0.4); seg(mx, GY - 7.6, mx + 2.3, GY - 0.3, 0.4); seg(mx, GY - 7.6, mx + 0.1, GY - 0.3, 0.4);
+    C('ink'); g.fillRect(mx - 2.6, GY - 8.2, 5.2, 0.6);
+    C('ink'); g.fillRect(mx - 1.6, GY - 9.1, 3.4, 0.9);
+    C('acc', 1); ell(mx - 0.6, GY - 9.6, 0.9, 0.45);
+    if (Math.sin(t * 4) > 0) { C('white'); circ(mx - 0.4, GY - 9.75, 0.25); }
+    C('ink2'); g.lineWidth = 0.9; g.beginPath(); g.moveTo(mx + 1.3, GY - 9); g.quadraticCurveTo(mx + 2.4, GY - 13, mx + 0.4, GY - 14.4); g.stroke();
+    var eyeP = { x: mx - 2.1, y: GY - 15.6 }, objP = { x: mx - 0.4, y: GY - 10.6 };
+    C('acc'); seg(eyeP.x, eyeP.y, objP.x, objP.y, 1.15);
+    C('acc2'); seg(eyeP.x - 0.4, eyeP.y - 0.8, eyeP.x + 0.15, eyeP.y + 0.1, 1.3);
+    C('ink'); seg(objP.x - 0.2, objP.y - 0.4, objP.x + 0.1, objP.y + 0.5, 0.7);
+    C('ink2'); circ(mx + 0.8, GY - 12.2, 0.55);
+
+    // the magnified view
+    var bub = prog(tau, 1.3, 1.9) * (1 - prog(tau, 4.4, 5.0));
+    if (bub > 0) {
+      var R = 9.5 * easeOut(bub), bx = mx + 7, by = GY - 30;
+      for (k = 0; k < 3; k++) { C('acc2', bub); circ(lerp(eyeP.x + 1.5, bx - 3, (k + 1) / 4), lerp(eyeP.y - 2, by + R * 0.9, (k + 1) / 4), 0.35 + k * 0.25); }
+      g.save(); g.beginPath(); g.arc(bx, by, R, 0, TAU); g.clip();
+      C('pale', 1); g.fillRect(bx - R, by - R, R * 2, R * 2);
+      for (var gy2 = -3; gy2 <= 3; gy2++) for (var gx2 = -4; gx2 <= 4; gx2++) {
+        var cxx = bx + gx2 * 3.2 + (gy2 % 2 ? 1.6 : 0), cyy = by + gy2 * 2.8;
+        var hh = hash(gx2 + 9, gy2 + 9), sz = 1.2 + hh * 0.7, rot = t * 0.3 + hh * 3;
+        var inVein = Math.abs(gy2 * 2.8 - gx2 * 0.9) < 5;
+        C(inVein ? (hh > 0.5 ? 'acc' : 'acc2') : (hh > 0.6 ? 'light' : 'pale'), 1);
+        g.save(); g.translate(cxx, cyy); g.rotate(rot);
+        poly([0, -sz * 1.3, sz, 0, 0, sz * 1.3, -sz, 0]);
+        g.restore();
+        if (inVein && Math.sin(t * 4 + hh * 20) > 0.7) { C('white'); circ(cxx, cyy - 0.4, 0.45); }
+      }
+      g.restore();
+      C('ink2', 1); ring(bx, by, R, 0.55); C('acc2', 1); ring(bx, by, Math.max(0.1, R - 0.6), 0.3);
+    }
+    if (tau > 4.5 && tau < 6.2) for (k = 0; k < 5; k++) if (Math.sin(t * 7 + k * 1.9) > 0) sparkle(gx - 4 + k * 2.4, GY - 25 - (k % 2) * 2.5, 0.7, k % 2 ? 'acc2' : 'acc');
   }
 
-  // ---------- scene 4: spider ----------
-  var WEB_C = { x: 560, y: 36 }, WEB_RX = 31, WEB_RY = 12;
-  function spiralPt(s) { // s in [0,1] along a 5-turn spiral
-    var turns = 5, th = s * turns * Math.PI * 2, r = 0.12 + 0.86 * s;
-    return { x: WEB_C.x + Math.cos(th) * WEB_RX * r, y: WEB_C.y + Math.sin(th) * WEB_RY * r };
-  }
-  function sceneSpider(u, t) {
-    var i, n;
-    // thread from above and the spider's descent
-    var drop = ease(clamp(u / 0.7, 0, 1));
-    var sp = { x: WEB_C.x, y: lerp(-4, WEB_C.y, drop) };
-    if (u < 1.2) line(WEB_C.x, -4, WEB_C.x, sp.y, 'b');
-    // spokes
-    var spokes = 10, spokeProg = clamp((u - 0.5) / 1.6, 0, 1);
-    for (i = 0; i < spokes; i++) {
-      var a = i / spokes * Math.PI * 2 + 0.2;
-      var p = clamp(spokeProg * spokes - i, 0, 1);
+  // ---------- scene: spider ----------
+  var HUB = { x: 0, y: GY - 22 }, WRX = 19, WRY = 13, SPOKES = 16;
+  function sceneSpider(tau, t) {
+    var i;
+    C('acc2', 0.95); quad(-26, GY, -28, GY - 20, -24, GY - 38, 0.8); quad(27, GY, 29, GY - 18, 25, GY - 36, 0.8);
+    C('acc', 0.9);
+    [[-26.6, GY - 12, -1], [-25.6, GY - 26, 1], [27.8, GY - 15, 1], [26.6, GY - 28, -1]].forEach(function (l) {
+      g.save(); g.translate(l[0], l[1]); g.rotate(l[2] * 0.6 + Math.sin(t + l[1]) * 0.08); ell(l[2] * 2.2, 0, 2.6, 0.7); g.restore();
+    });
+    C('light', 1); ell(-24, GY - 39, 1.4, 2); ell(25, GY - 37, 1.2, 1.8);
+    var webA = 'acc2';
+    var drop = easeOut(prog(tau, -3, -1));
+    var sp = { x: HUB.x, y: lerp(-2, HUB.y, drop) }, moving = tau < 6.5;
+    if (tau < 0.5) { C(webA, 0.9); seg(HUB.x, -2, HUB.x, sp.y, 0.3); }
+    var spokeP = prog(tau, -1, 1.8);
+    if (spokeP > 0) {
+      C(webA, 0.95);
+      seg(-WRX - 1, HUB.y - 7, -25.6, GY - 32, 0.3); seg(WRX + 1, HUB.y - 6, 26.4, GY - 30, 0.3);
+      seg(-WRX + 2, HUB.y + 9, -27, GY - 9, 0.3); seg(WRX - 2, HUB.y + 9, 28, GY - 11, 0.3);
+    }
+    for (i = 0; i < SPOKES; i++) {
+      var a = i / SPOKES * TAU + 0.15;
+      var p = clamp(spokeP * SPOKES - i, 0, 1);
       if (p <= 0) continue;
-      var ex = WEB_C.x + Math.cos(a) * WEB_RX * 1.02, ey = WEB_C.y + Math.sin(a) * WEB_RY * 1.1;
-      line(WEB_C.x, WEB_C.y, lerp(WEB_C.x, ex, p), lerp(WEB_C.y, ey, p), 'b');
-      if (p < 1) sp = { x: lerp(WEB_C.x, ex, p), y: lerp(WEB_C.y, ey, p) };
+      var ex = HUB.x + Math.cos(a) * WRX * 1.08, ey = HUB.y + Math.sin(a) * WRY * 1.08;
+      C(webA, 0.9); seg(HUB.x, HUB.y, lerp(HUB.x, ex, p), lerp(HUB.y, ey, p), 0.32);
+      if (p < 1) sp = { x: lerp(HUB.x, ex, p), y: lerp(HUB.y, ey, p) };
     }
-    // spiral, drawn outward
-    var spiralProg = clamp((u - 2.1) / 2.9, 0, 1);
-    n = Math.floor(spiralProg * 420);
-    var prev = null;
+    var spiral = prog(tau, 1.8, 6.5), N = 380, n = Math.floor(spiral * N), prev = null;
     for (i = 0; i <= n; i++) {
-      var q = spiralPt(i / 420);
-      if (prev) line(prev.x, prev.y, q.x, q.y, (i % 9 === 0 && Math.sin(t * 4 + i) > 0.8) ? 'w' : 'b');
+      var s = i / N, th = s * 5.5 * TAU, r = 0.14 + 0.86 * s;
+      var q = { x: HUB.x + Math.cos(th) * WRX * r, y: HUB.y + Math.sin(th) * WRY * r };
+      if (prev) { C(webA, 0.9); seg(prev.x, prev.y, q.x, q.y, 0.32); }
       prev = q;
     }
-    if (spiralProg > 0 && spiralProg < 1) sp = prev;
-    else if (spiralProg >= 1) sp = { x: WEB_C.x, y: WEB_C.y + Math.round(Math.sin(t * 2)) };
-    // anchor threads to posts
-    if (spokeProg > 0.9) { line(WEB_C.x - WEB_RX, WEB_C.y, 524, 30, 'b'); line(WEB_C.x + WEB_RX, WEB_C.y, 596, 30, 'b'); line(WEB_C.x - WEB_RX, WEB_C.y, 524, 44, 'b'); line(WEB_C.x + WEB_RX, WEB_C.y, 596, 44, 'b'); }
-    sprite(SPIDER, sp.x - 4, sp.y - 3);
+    if (spiral > 0 && spiral < 1) sp = prev;
+    if (spiral >= 1) sp = { x: HUB.x, y: HUB.y + 0.6 };
+    if (spiral >= 1) {
+      for (i = 0; i < 6; i++) {
+        var s2 = ((t * 0.05 + i / 6) % 1), th2 = s2 * 5.5 * TAU, r2 = 0.14 + 0.86 * s2;
+        C('white', 1); circ(HUB.x + Math.cos(th2) * WRX * r2, HUB.y + Math.sin(th2) * WRY * r2, 0.5);
+      }
+      var gp = prog(tau, 7, 9.5), gx = lerp(40, 11, easeOut(gp)), gy = HUB.y - 4 + Math.sin(t * 6) * (1 - gp) * 1.5;
+      if (tau > 7) { drawFly(gx, gy, t); if (gp >= 1 && Math.sin(t * 20) > 0) { C('acc'); ring(gx, gy, 1.6, 0.2); } }
+    }
+    drawSpider(sp.x, sp.y, t, moving);
+  }
+  function drawSpider(x, y, t, moving) {
+    g.save(); g.translate(x, y); g.scale(1.3, 1.3); g.translate(-x, -y);
+    C('ink', 1);
+    for (var side = -1; side <= 1; side += 2) for (var l = 0; l < 4; l++) {
+      var ph = moving ? Math.sin(t * 14 + l * 1.6 + (side > 0 ? 1.5 : 0)) * 0.5 : Math.sin(t + l) * 0.05;
+      var a0 = (-0.9 + l * 0.6) + ph * 0.3;
+      var kx = x + side * Math.cos(a0) * 2.2, ky = y + Math.sin(a0) * 2.2 - 1.1;
+      var fx = x + side * Math.cos(a0 + 0.3) * 3.6, fy = y + Math.sin(a0 + 0.3) * 3.6 + 0.9;
+      seg(x, y, kx, ky, 0.32); seg(kx, ky, fx, fy, 0.28);
+    }
+    ell(x, y + 1.6, 1.6, 2); circ(x, y - 0.6, 1.1);
+    C('acc'); ell(x, y + 1.6, 0.6, 1); C('white'); circ(x - 0.4, y - 1, 0.25); circ(x + 0.4, y - 1, 0.25);
+    g.restore();
   }
 
-  // ---------- scene 5: whale ----------
+  // ---------- scene: whale ----------
   var plankton = [];
-  for (var pi = 0; pi < 140; pi++) plankton.push({ x: 732 + hash(pi, 1) * 60, y: 62 + hash(pi, 2) * 36, ph: hash(pi, 3) * 6.28, eaten: 0 });
-  var lastU5 = 0;
-  function sceneWhale(u, t) {
-    if (u < lastU5) for (var r = 0; r < plankton.length; r++) plankton[r].eaten = 0; // new loop
-    lastU5 = u;
-    var cx = 700 + ease(clamp((u - 1.0) / 3.5, 0, 1)) * 10, cy = 78, rx = 34, ry = 13;
-    var open = u < 1.0 ? 0.04 : u < 2.4 ? lerp(0.04, 0.46, ease((u - 1.0) / 1.4)) : u < 4.4 ? 0.46 : u < 5.4 ? lerp(0.46, 0.04, ease((u - 4.4) / 1.0)) : 0.04;
-    var M = { x: cx, y: cy };
-    var wag = Math.sin(t * 2.5) * 2;
-    // tail flukes
-    for (var x = cx - rx - 13; x <= cx - rx + 2; x++) {
-      var s = (cx - rx + 2 - x) / 15, half = Math.round(1 + s * s * 8);
-      for (var y = -half; y <= half; y++) if (Math.abs(y) > s * 2.2 || s < 0.4) px(x, cy + wag * s + y, 'a');
+  for (var pi = 0; pi < 260; pi++) plankton.push({ x: -2 + hash(pi, 31) * 26, y: SURF - 2.5 + Math.pow(hash(pi, 32), 1.6) * 12, ph: hash(pi, 33) * TAU, z: 0.5 + hash(pi, 34) * 0.5, eaten: false });
+  var lastTauW = -99;
+  function whalePose(tau) {
+    var x, y, a, open, pouch, p;
+    if (tau < 0) { p = prog(tau, -6, 0); x = lerp(-60, -10, p); y = SURF + 10 + Math.sin(tau * 1.3) * 0.6; a = Math.sin(tau) * 0.03; open = 0.04; pouch = 0; }
+    else if (tau < 1.0) { p = ease(tau); x = lerp(-10, 0, p); y = lerp(SURF + 10, SURF + 12, p); a = lerp(0, -0.95, p); open = lerp(0.04, 0.25, p); pouch = 0.1 * p; }
+    else if (tau < 1.9) { p = easeOut(prog(tau, 1.0, 1.9)); x = lerp(0, 9, p); y = lerp(SURF + 12, SURF - 13, p); a = lerp(-0.95, -1.02, p); open = lerp(0.25, 0.85, p); pouch = p; }
+    else if (tau < 2.6) { p = prog(tau, 1.9, 2.6); x = 9 + p * 0.8; y = SURF - 13 - Math.sin(p * Math.PI) * 0.8; a = -1.02 + p * 0.06; open = lerp(0.85, 0.06, ease(p)); pouch = 1; }
+    else if (tau < 3.8) { p = easeIn(prog(tau, 2.6, 3.8)); x = lerp(9.8, 24, p); y = lerp(SURF - 13, SURF + 10, p); a = lerp(-0.96, -0.15, p); open = 0.06; pouch = lerp(1, 0.7, p); }
+    else { p = prog(tau, 3.8, 10); x = lerp(24, 80, p); y = SURF + 10 - Math.sin(p * Math.PI); a = lerp(-0.2, 0.05, ease(p * 3)); open = 0.05; pouch = lerp(0.7, 0.1, ease(p * 2)); }
+    return { x: x, y: y, a: a, open: open, pouch: pouch };
+  }
+  function drawWhaleBody(w, t) {
+    g.save(); g.translate(w.x, w.y); g.rotate(w.a); g.scale(1.3, 1.3);
+    var fl = Math.sin(t * 2.4) * 2.2;
+    C('acc'); g.beginPath(); g.moveTo(-34, -1.4); g.quadraticCurveTo(-40, -2 + fl * 0.3, -44, -5.5 + fl); g.quadraticCurveTo(-41, -1 + fl * 0.5, -40.5, fl * 0.4);
+    g.quadraticCurveTo(-41, 1 + fl * 0.5, -44, 5.5 + fl); g.quadraticCurveTo(-40, 2 + fl * 0.3, -34, 1.4); g.closePath(); g.fill();
+    var Hx = -7, Hy = 0.4;
+    g.beginPath(); g.moveTo(-35, -1.2); g.bezierCurveTo(-26, -6.5, -12, -7.6, -2, -6); g.quadraticCurveTo(3.5, -4.6, 5, -2.2);
+    g.lineTo(Hx, Hy); g.bezierCurveTo(-16, 5.5, -28, 4.5, -35, 1.2); g.closePath(); g.fill();
+    g.save(); g.clip(); C('ink', 0.28); ell(-14, -7, 22, 4.5); C('white', 0.25); ell(-14, 3.5, 20, 2.2); g.restore();
+    var o = w.open, co = Math.cos(o), so = Math.sin(o);
+    function J(x, y) { var dx = x - Hx, dy = y - Hy; return [Hx + dx * co - dy * so, Hy + dx * so + dy * co]; }
+    var jt = J(4.6, 0.2);
+    var bul = 2.5 + w.pouch * 6.5;
+    if (o > 0.08) {
+      C('ink2'); poly([Hx, Hy, 5, -2.2, jt[0], jt[1]]); C('acc', 0.5); poly([Hx, Hy, 5, -2.2, jt[0], jt[1]]);
+      C('light', 1); for (var b = 0; b < 12; b++) { var s = b / 12, ux = lerp(Hx + 1, 4.4, s), uy = lerp(Hy - 0.4, -2.1, s); seg(ux, uy, ux + so * 1.6, uy + co * 1.6 * 0.9, 0.3); }
     }
-    // body: upper part and the mouth interior, then the rotated lower jaw
-    var cosO = Math.cos(open), sinO = Math.sin(open), i;
-    for (x = cx - rx; x <= cx + rx; x++) for (y = cy - ry; y <= cy + ry; y++) {
-      var dx = (x - cx) / rx, dy = (y - cy) / ry;
-      if (dx * dx + dy * dy > 1) continue;
-      var belly = y > cy + ry * 0.3;
-      if (x > M.x && y > M.y) { // lower jaw region
-        px(x, y, (y - M.y) <= 5 && (x % 2 === 0) ? 'b' : 'k'); // mouth interior with baleen
-      } else px(x, y, belly ? 'A' : 'a');
+    C('acc2');
+    g.beginPath(); g.moveTo(Hx, Hy); g.lineTo(jt[0], jt[1]);
+    var c1 = J(0, 1.6 + bul * 0.9), c2 = J(-14, 3.5 + bul);
+    g.bezierCurveTo(c1[0], c1[1], c2[0], c2[1], -24, 4.2); g.lineTo(-16, 3.2); g.closePath(); g.fill();
+    g.save(); g.clip();
+    for (var k = 0; k < 9; k++) {
+      var a1 = J(4.4 - k * 0.3, 0.3 + k * 0.45), a2 = J(-20, 3 + k * (0.55 + bul * 0.14));
+      C(k % 2 ? 'white' : 'acc', k % 2 ? 0.7 : 0.55);
+      quad(a1[0], a1[1], (a1[0] + a2[0]) / 2, (a1[1] + a2[1]) / 2 + bul * 0.35, a2[0], a2[1], 0.5);
     }
-    // lower jaw, rotated down by `open` about the hinge M (inverse-mapped so it stays solid)
-    for (x = M.x - 2; x <= M.x + rx + 4; x++) for (y = M.y; y <= M.y + ry + 22; y++) {
-      var jx = x - M.x, jy = y - M.y;
-      var ux = jx * cosO + jy * sinO, uy = -jx * sinO + jy * cosO; // back into the whale's own frame
-      if (ux <= 0 || uy <= 0) continue;
-      var ex = ux / rx, ey = uy / ry;
-      if (ex * ex + ey * ey <= 1) px(x, y, (uy > ry * 0.3 || true) ? 'A' : 'a');
+    g.restore();
+    if (o > 0.08) { C('light', 1); g.lineWidth = 0.9; g.beginPath(); g.moveTo(Hx + 0.6, Hy - 0.6); g.lineTo(4.6, -2.3); g.stroke(); }
+    C('white'); circ(-3.8, -2.6, 0.75); C('ink'); circ(-3.6, -2.6, 0.45);
+    C('ink2', 0.9); [[-1, -4.6], [1.3, -3.9], [-3, -5.3], [2.8, -3]].forEach(function (p) { circ(p[0], p[1], 0.35); });
+    C('acc2'); g.save(); g.translate(-13, 3); g.rotate(0.6 + Math.sin(t * 1.5) * 0.1); ell(-5, 0, 6, 1.1); g.restore();
+    g.restore();
+  }
+  function sceneWhale(tau, t) {
+    if (tau < -5 || tau < lastTauW - 1) plankton.forEach(function (p) { p.eaten = false; });
+    lastTauW = tau;
+    var w = whalePose(tau);
+    drawWhaleBody(w, t);
+    var co = Math.cos(w.a), so = Math.sin(w.a);
+    C('light', 0.5); g.fillRect(-120, SURF + 0.2, 260, ROWS);
+    plankton.forEach(function (p, i) {
+      if (p.eaten) return;
+      var x = p.x + Math.sin(t * 0.7 + p.ph) * 1.4, y = p.y + Math.sin(t * 1.1 + p.ph * 2) * 0.9;
+      var dx = x - w.x, dy = y - w.y;
+      var lx = (dx * co + dy * so) / 1.3, ly = (-dx * so + dy * co) / 1.3;
+      if (w.open > 0.3 && lx > -7 && lx < 12) {
+        var angp = Math.atan2(ly - 0.4, lx + 7), angTop = Math.atan2(-2.6, 12);
+        if (angp > angTop && angp < w.open + 0.15) { p.eaten = true; return; }
+      }
+      var tw = 0.6 + 0.4 * Math.sin(t * 3 + p.ph * 3);
+      C(i % 3 === 0 ? 'acc' : 'acc2', 0.6 + p.z * 0.4 * tw);
+      circ(x, y, 0.25 + p.z * 0.28 * tw);
+    });
+    [[1.0, 6, 40], [3.1, 18, 60]].forEach(function (sp) {
+      var dt = tau - sp[0];
+      if (dt < 0 || dt > 1.8) return;
+      for (var i = 0; i < sp[2]; i++) {
+        var vx = (hash(i, 41) - 0.5) * 22, vy = -10 - hash(i, 42) * 18;
+        var x = sp[1] + (hash(i, 43) - 0.5) * 8 + vx * dt, y = SURF + vy * dt + 20 * dt * dt;
+        if (y < SURF + 0.6) { C(i % 4 ? 'acc2' : 'acc', clamp(1.4 - dt, 0, 1)); circ(x, y, 0.35 + hash(i, 44) * 0.35); }
+      }
+    });
+    if (tau > 1.9 && tau < 3.0) {
+      var co2 = Math.cos(w.a), so2 = Math.sin(w.a), mx2 = w.x + (5 * co2 + 1 * so2) * 1.3, my2 = w.y + (5 * so2 - 1 * co2) * 1.3;
+      for (var d = 0; d < 18; d++) {
+        var ph = ((tau - 1.9) * 1.6 + hash(d, 51)) % 1;
+        C(d % 3 ? 'acc2' : 'light', 1); circ(mx2 + (hash(d, 52) - 0.3) * 3 + ph * 2, my2 + ph * 16, 0.35 + hash(d, 53) * 0.3);
+      }
     }
-    // eye, fin, blowhole bubbles
-    px(M.x + 16, M.y - 5, 'w'); px(M.x + 17, M.y - 5, 'k');
-    for (i = 0; i < 6; i++) px(cx - 6 - i, cy + ry - 1 + Math.round(i * 0.8 + Math.sin(t * 3) * 0.5), 'a');
-    for (i = 0; i < 4; i++) { var bt = (t * 0.6 + i * 0.25) % 1; px(cx + 2 + Math.sin(bt * 9 + i) * 1.5, cy - ry - bt * 26, bt > 0.9 ? 'w' : 'b'); }
-    // plankton drifting into the mouth
-    for (i = 0; i < plankton.length; i++) {
-      var p = plankton[i];
-      if (p.eaten) { if (u - p.eaten < 0.25) px(p.ex, p.ey, 'w'); continue; }
-      var pxx = p.x - u * 3.2 + Math.sin(t * 1.5 + p.ph) * 1.2, pyy = p.y + Math.sin(t * 0.9 + p.ph * 2) * 1.5;
-      // inside the open mouth?
-      var ddx = pxx - M.x, ddy = pyy - M.y, ang = Math.atan2(ddy, ddx);
-      if (open > 0.25 && ddx > 0 && ddx < rx + 2 && ang > -0.05 && ang < open) { p.eaten = u; p.ex = pxx; p.ey = pyy; continue; }
-      px(pxx, pyy, (i % 3 === 0) ? 'A' : 'a');
-    }
+    if (tau > 1.6 && tau < 2.6) for (var k = 0; k < 4; k++) if (Math.sin(t * 8 + k * 2) > 0.3) sparkle(w.x + 4 + k * 2.6, w.y - 12 - (k % 2) * 3, 0.8, 'acc');
   }
 
-  // ---------- timeline ----------
-  var scenes = [
-    { cx: 80, cy: 8, dwell: 7.2, draw: sceneFisher },
-    { cx: 240, cy: 8, dwell: 5.0, draw: sceneCham },
-    { cx: 400, cy: 8, dwell: 5.0, draw: sceneProspector },
-    { cx: 560, cy: 8, dwell: 6.2, draw: sceneSpider },
-    { cx: 720, cy: 44, dwell: 7.2, draw: sceneWhale }
+  // ---------- frame ----------
+  var SCENES = [
+    { x: X.fisher, draw: sceneFisher },
+    { x: X.cham, draw: sceneCham },
+    { x: X.prosp, draw: sceneProsp },
+    { x: X.spider, draw: sceneSpider },
+    { x: X.whale, draw: sceneWhale }
   ];
-  var GLIDE = 1.7, TOTAL = scenes.reduce(function (a, s) { return a + s.dwell; }, 0) + GLIDE * scenes.length;
+  var ANCHOR = 0.6;
+  function speedFor() { return Math.max(9, cols / 19); }
 
   function frame(t) {
-    var tt = t % TOTAL, acc = 0, i, local = [];
-    cam.x = 0; cam.y = 0;
-    for (i = 0; i < scenes.length; i++) {
-      var s = scenes[i], nxt = scenes[(i + 1) % scenes.length];
-      if (tt < acc + s.dwell) { cam.x = s.cx - cols / 2; cam.y = s.cy; local[i] = tt - acc; break; }
-      acc += s.dwell;
-      if (tt < acc + GLIDE) {
-        var g = ease((tt - acc) / GLIDE);
-        var targetX = nxt.cx + (i === scenes.length - 1 ? WORLD_W : 0);
-        cam.x = lerp(s.cx, targetX, g) - cols / 2; cam.y = lerp(s.cy, nxt.cy, g);
-        local[i] = s.dwell; local[(i + 1) % scenes.length] = 0; break;
-      }
-      acc += GLIDE;
+    speed = speedFor();
+    camRaw = t * speed + X.fisher - cols * ANCHOR - speed * 1.5;
+    cam = ((camRaw % L) + L) % L;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = 1;
+    g.clearRect(0, 0, cols, ROWS);
+    drawBackdrop(t);
+    drawGround(t);
+    drawBushes(t);
+    for (var i = 0; i < SCENES.length; i++) {
+      var dx = ((SCENES[i].x - cam) % L + L) % L;
+      if (dx > L - 220) dx -= L;
+      if (dx < -170 || dx > cols + 170) continue;
+      var tau = (cols * ANCHOR - dx) / speed;
+      g.setTransform(S, 0, 0, S, dx, GY * (1 - S));
+      SCENES[i].draw(tau, t);
     }
-    cam.x = Math.round(wrap(cam.x)); cam.y = Math.round(cam.y);
-    drawStatic(t);
-    for (i = 0; i < scenes.length; i++) scenes[i].draw(local[i] === undefined ? (i === 0 && tt >= TOTAL - GLIDE ? 0 : scenes[i].dwell) : local[i], t);
-    // blit
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1;
+
+    var data = g.getImageData(0, 0, cols, ROWS).data;
+    out.setTransform(1, 0, 0, 1, 0, 0);
+    out.clearRect(0, 0, canvas.width, canvas.height);
+    out.drawImage(bg, 0, 0);
     var cs = cell * dpr;
-    for (var vy = 0; vy < ROWS; vy++) for (var vx = 0; vx < cols; vx++) {
-      ctx.drawImage(dots[buf[vy * cols + vx]], vx * cs, vy * cs);
+    for (var y = 0; y < ROWS; y++) for (var x = 0; x < cols; x++) {
+      var j = (y * cols + x) * 4, a = data[j + 3] / 255;
+      if (a < 0.04) continue;
+      a *= edgeFade(x, y);
+      if (a < 0.04) continue;
+      var ci = nearest(data[j], data[j + 1], data[j + 2]);
+      var lv = Math.min(NL - 1, Math.round(Math.sqrt(a) * (NL - 1)));
+      out.drawImage(sprites[ci][lv], x * cs, y * cs);
     }
   }
 
-  // Expose for screenshots/tests: window.__hunt.seek(seconds)
-  window.__hunt = { seek: function (s) { paused = true; lastT = s; frame(s); }, total: TOTAL, scenes: scenes, glide: GLIDE };
-
-  var paused = false, start = null, running = true;
-  var _frame = frame; frame = function (t) { lastT = t; _frame(t); };
+  // ---------- run ----------
+  var paused = false, running = true, start = null, lastT = 6;
+  function render(t) { lastT = t; frame(t); }
   function loop(ts) {
-    if (!start) start = ts;
-    if (!paused && running) frame((ts - start) / 1000);
+    if (start === null) start = ts;
+    if (!paused && running && !document.hidden) render((ts - start) / 1000);
     requestAnimationFrame(loop);
   }
-  if ('IntersectionObserver' in window) {
-    new IntersectionObserver(function (es) { running = es[0].isIntersecting; }, { threshold: 0.05 }).observe(canvas);
-  }
+  // For screenshots and tests: __hunt.seek(t), __hunt.at(sceneIndex, tau)
+  window.__hunt = {
+    seek: function (t) { paused = true; render(t); },
+    at: function (i, tau) { paused = true; render(i * SPACING / speedFor() + 1.5 + tau); },
+    loop: function () { return L / speedFor(); }
+  };
+  if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { running = es[0].isIntersecting; }, { threshold: 0.02 }).observe(canvas);
   resize();
-  var lastT = 3.0;
-  window.addEventListener('resize', function () { resize(); if (reduced || paused) frame(lastT); });
-  if (reduced) frame(3.0); else requestAnimationFrame(loop);
+  window.addEventListener('resize', function () { resize(); if (paused || reduced) render(lastT); });
+  if (reduced) render(6); else requestAnimationFrame(loop);
 })();
