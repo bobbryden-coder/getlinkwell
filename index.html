@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/png" href="/favicon.png">
-<title>Linkwell. Draft LinkedIn and email outreach in seconds</title>
+<title>Linkwell. Win the talent hunt.</title>
+<meta name="description" content="Linkwell finds the people worth reaching for a role, ranks them against your brief, and helps your recruiters reach out from LinkedIn. One system of record for recruiting and expert-network teams.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -388,8 +389,73 @@
   footer a { color: inherit; text-decoration: none; margin-left: 20px; }
   footer a:hover { color: var(--ink); }
 
+
+  .hero { padding: 56px 28px 28px; }
+  .hunt-wrap {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+  .hunt-frame {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 14px;
+    box-shadow: 0 1px 2px rgba(16,17,20,.04), 0 24px 60px -24px rgba(16,17,20,.12);
+  }
+  #hunt { display: block; width: 100%; border-radius: 10px; background: #fff; }
+  .hunt-caption {
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    margin-top: 12px; padding: 0 4px;
+    font-size: 12.5px; color: var(--ink-faint); font-weight: 500;
+  }
+  .hunt-caption b { color: var(--ink-soft); font-weight: 600; }
+  .logos {
+    max-width: 1040px; margin: 36px auto 0; padding: 0 28px;
+    display: flex; gap: 10px 28px; justify-content: center; flex-wrap: wrap;
+    font-size: 13.5px; color: var(--ink-faint); font-weight: 500;
+  }
+  .logos span { display: inline-flex; align-items: center; gap: 8px; }
+  .logos .tick { color: var(--accent); font-weight: 700; }
+
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .step { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 24px; position: relative; }
+  .step .num {
+    width: 30px; height: 30px; border-radius: 9px;
+    background: var(--ink); color: #fff;
+    display: grid; place-items: center; font-weight: 700; font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .step h3 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 8px; }
+  .step p { font-size: 13.5px; color: var(--ink-soft); line-height: 1.65; }
+  .step ul { margin: 12px 0 0; padding: 0; list-style: none; font-size: 13px; color: var(--ink-soft); }
+  .step li { padding: 5px 0 5px 18px; position: relative; }
+  .step li::before { content: ''; position: absolute; left: 0; top: 11px; width: 8px; height: 8px; border-radius: 2px; background: var(--accent-soft); border: 1.5px solid var(--accent); }
+
+  .reach { padding: 88px 28px 0; }
+  .reach-inner { max-width: 1020px; margin: 0 auto; }
+  .reach .kicker { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-bottom: 12px; }
+  .reach h2 { font-size: clamp(28px, 4vw, 38px); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 14px; }
+  .reach .lede { color: var(--ink-soft); font-size: 16.5px; max-width: 600px; line-height: 1.6; margin-bottom: 36px; }
+
+  .who { border-top: 1px solid var(--line); padding: 88px 28px; }
+  .who-inner { max-width: 1020px; margin: 0 auto; }
+  .who h2 { font-size: clamp(28px, 4vw, 38px); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 36px; }
+  .who-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .who-card { border: 1px solid var(--line); border-radius: 14px; padding: 26px; background: var(--bg-soft); }
+  .who-card h3 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 10px; }
+  .who-card p { font-size: 14px; color: var(--ink-soft); line-height: 1.65; }
+  @media (max-width: 820px) {
+    .steps, .who-grid { grid-template-columns: 1fr; }
+    .hunt-frame { padding: 8px; border-radius: 14px; }
+    .hero { padding-top: 40px; }
+  }
+
+  .btn { white-space: nowrap; }
   @media (max-width: 820px) {
     .nav-links { display: none; }
+    .nav-actions .btn-ghost { display: none; }
+    nav { padding: 16px 18px; }
     .split { grid-template-columns: 1fr; }
     .profile-pane { border-right: none; border-bottom: 1px solid var(--line); }
     .grid { grid-template-columns: 1fr; }
@@ -414,6 +480,8 @@
       posthog.capture('add_to_chrome_clicked', { location: a.closest('header,nav') ? 'nav' : 'page' });
     } else if (a.href.indexOf('portal.linkwellhq.com') !== -1) {
       posthog.capture('sign_in_clicked');
+    } else if (a.href.indexOf('mailto:') === 0) {
+      posthog.capture('request_demo_clicked');
     }
   });
 </script>
@@ -432,21 +500,91 @@
   </div>
   <div class="nav-links">
     <a href="#how">How it works</a>
-    <a href="#features">Features</a>
+    <a href="#reach">Outreach</a>
+    <a href="#who">Who it's for</a>
     <a href="#pricing">Pricing</a>
   </div>
   <div class="nav-actions">
     <a class="btn btn-ghost" href="https://portal.linkwellhq.com">Sign in</a>
-    <a class="btn btn-dark" href="https://chromewebstore.google.com/detail/linkwell-ai-linkedin-outr/oicpmfbmankanehinmchmbakcjmlmodc" target="_blank" rel="noopener">Add to Chrome</a>
+    <a class="btn btn-dark" href="mailto:bob.bryden88@gmail.com?subject=Linkwell%20demo">Request a demo</a>
   </div>
 </nav>
 
 <header class="hero">
-  <div class="pill"><span class="dot"></span>New: LinkedIn message drafting</div>
-  <h1>Outreach messages,<br>written while you browse.</h1>
+  <div class="pill"><span class="dot"></span>For recruiting and expert-network firms</div>
+  <h1>Win the talent hunt.</h1>
+  <p class="sub">Linkwell finds the people worth reaching for every role, ranks them against your brief, and helps your team reach out from LinkedIn. Search, shortlist, outreach and replies, in one system of record.</p>
+  <div class="hero-ctas">
+    <a class="btn btn-dark btn-lg" href="mailto:bob.bryden88@gmail.com?subject=Linkwell%20demo">Request a demo</a>
+    <a class="btn btn-outline btn-lg" href="https://portal.linkwellhq.com">Open the portal</a>
+  </div>
 </header>
 
-<div class="demo-wrap" id="how">
+<div class="hunt-wrap" aria-label="Animation: a fisherman, a chameleon, a prospector, a spider and a whale, each catching what they are after">
+  <div class="hunt-frame">
+    <canvas id="hunt" width="960" height="372" role="img" aria-label="Pixel animation of five hunters: a fisherman landing a fish, a chameleon catching a fly, a prospector finding a vein of ore, a spider weaving its web, and a whale feeding on plankton"></canvas>
+    <div class="hunt-caption">
+      <span><b>Every great hunter has a method.</b> Yours should too.</span>
+      <span>Find &middot; Rank &middot; Reach &middot; Track</span>
+    </div>
+  </div>
+</div>
+
+<div class="logos">
+  <span><span class="tick">&#10003;</span> Ranked candidate lists in about a minute</span>
+  <span><span class="tick">&#10003;</span> Every score explained</span>
+  <span><span class="tick">&#10003;</span> Outreach from your own LinkedIn</span>
+  <span><span class="tick">&#10003;</span> Works inside Claude too</span>
+</div>
+
+<section class="features" id="how">
+  <div class="features-inner">
+    <h2>From brief to booked call.</h2>
+    <p class="lede">Paste the role. Linkwell does the searching and the ranking, your recruiters do the judging and the talking. Everything lands in one portal, so nothing lives in a spreadsheet or someone's inbox.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="num">1</div>
+        <h3>Find and rank</h3>
+        <p>From a job description, Linkwell searches licensed people data for the market you name and returns the best 25 to 100 people, ranked against your brief.</p>
+        <ul>
+          <li>Role, domain, seniority, skills and time in role, scored separately</li>
+          <li>A one-line reason and flags on every candidate</li>
+          <li>Off-title and out-of-area profiles dropped before you see them</li>
+        </ul>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <h3>Review and shortlist</h3>
+        <p>Each candidate has a full profile in the portal: career history, skills matched to the role, education and whether a business email exists.</p>
+        <ul>
+          <li>Shortlist or reject in one click</li>
+          <li>Pipeline view per role: new, shortlisted, contacted, replied, booked</li>
+          <li>A home page that shows what needs you today</li>
+        </ul>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <h3>Reach and track</h3>
+        <p>Queue your shortlist for outreach. The Chrome extension drafts a personal message on each LinkedIn profile, and every send and reply is logged back to the candidate.</p>
+        <ul>
+          <li>Connection notes, InMail, messages and email</li>
+          <li>Sent from your recruiters' own accounts, one person at a time</li>
+          <li>Replies, notes and follow-up drafts in one timeline</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="reach" id="reach">
+  <div class="reach-inner">
+    <div class="kicker">Outreach</div>
+    <h2>Messages written while you browse.</h2>
+    <p class="lede">The extension reads the profile in front of you and the role you are working, and drafts something worth sending. Your recruiter reviews, edits and sends. Nothing is automated behind their back.</p>
+  </div>
+</section>
+
+<div class="demo-wrap">
   <div class="window" aria-label="Product demo showing a LinkedIn outreach message being generated">
     <div class="window-bar">
       <span class="tl"></span><span class="tl"></span><span class="tl"></span>
@@ -501,34 +639,29 @@
   </div>
 </div>
 
-<section class="features" id="features">
-  <div class="features-inner">
-    <h2>From profile to sent, on any channel.</h2>
-    <p class="lede">No blank page, no copy and paste from a template. Linkwell turns the profile you are looking at, and the role or case you are working, into a ready to send draft.</p>
-    <div class="grid">
-      <div class="card">
-        <div class="icon">1</div>
-        <h3>Reads the profile for you</h3>
-        <p>Linkwell reads the role, experience, and background of whoever you are viewing, so every message references something real about them.</p>
+<section class="who" id="who">
+  <div class="who-inner">
+    <h2>Built for teams that hunt for a living.</h2>
+    <div class="who-grid">
+      <div class="who-card">
+        <h3>Recruitment firms</h3>
+        <p>Run a search per role, hand the ranked list to the recruiter working it, and see every role's pipeline on one page. Partners get the numbers, recruiters get the candidates, nobody rebuilds the long list in a spreadsheet.</p>
       </div>
-      <div class="card">
-        <div class="icon">2</div>
-        <h3>Knows the role or the case</h3>
-        <p>Drop in a job posting or a case brief, as text or a PDF, and every draft is matched to it. Built for recruiters filling roles and teams sourcing experts.</p>
-      </div>
-      <div class="card">
-        <div class="icon">3</div>
-        <h3>Drafts for the channel</h3>
-        <p>Connection notes that fit the 300 character limit, direct messages, InMail, or a full email that opens in Gmail or Outlook. You review, edit, and send.</p>
+      <div class="who-card">
+        <h3>Expert networks</h3>
+        <p>Turn a client brief into a ranked list of people who have actually done the job, with the reasoning next to each name. Reach out from LinkedIn and email, and keep every conversation on the expert's record.</p>
       </div>
     </div>
   </div>
 </section>
 
 <section class="final" id="pricing">
-  <h2>Start reaching out today.</h2>
-  <p>Free to install. $9.99 a month when you are ready for unlimited drafts.</p>
-  <a class="btn btn-dark btn-lg" href="https://chromewebstore.google.com/detail/linkwell-ai-linkedin-outr/oicpmfbmankanehinmchmbakcjmlmodc" target="_blank" rel="noopener">Add to Chrome</a>
+  <h2>Bring Linkwell to your team.</h2>
+  <p>Team pricing is per seat plus the candidate data you use. We will set you up on a live role in your first call.</p>
+  <div class="hero-ctas">
+    <a class="btn btn-dark btn-lg" href="mailto:bob.bryden88@gmail.com?subject=Linkwell%20demo">Request a demo</a>
+    <a class="btn btn-outline btn-lg" href="https://chromewebstore.google.com/detail/linkwell-ai-linkedin-outr/oicpmfbmankanehinmchmbakcjmlmodc" target="_blank" rel="noopener">Get the Chrome extension</a>
+  </div>
 </section>
 
 <footer>
@@ -627,5 +760,6 @@
 })();
 </script>
 
+<script src="/hunt.js" defer></script>
 </body>
 </html>
