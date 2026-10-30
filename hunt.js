@@ -107,10 +107,10 @@
 
   // ---------- world ----------
   var SPACING = 290, L = SPACING * 5;
-  var X = { fisher: 145, cham: 435, prosp: 725, spider: 1015, whale: 1305 };
+  var X = { fisher: 145, cham: 435, eagle: 725, spider: 1015, shark: 1305 };
   function isWater(wx) {
     wx = ((wx % L) + L) % L;
-    return (wx >= X.fisher - 1 && wx < X.fisher + 98) || (wx >= X.whale - 120 && wx < X.whale + 140);
+    return (wx >= X.fisher - 1 && wx < X.fisher + 98) || (wx >= X.shark - 120 && wx < X.shark + 140);
   }
   var cam = 0, camRaw = 0, speed = 14;
 
@@ -167,7 +167,7 @@
     }
   }
 
-  var BUSHES = [X.fisher - 120, X.fisher + 150, X.cham + 125, X.prosp - 115, X.prosp + 140, X.spider - 120, X.spider + 120];
+  var BUSHES = [X.fisher - 120, X.fisher + 150, X.cham + 125, X.eagle - 115, X.eagle + 140, X.spider - 120, X.spider + 120];
   function drawBushes(t) {
     for (var b = 0; b < BUSHES.length; b++) {
       var dx = ((BUSHES[b] - cam) % L + L) % L; if (dx > L - 40) dx -= L;
@@ -245,15 +245,15 @@
     } else if (tau < 5.4) {
       var h = easeOut(prog(tau, 4.6, 5.4));
       fish = { x: lerp(40, tip.x + 0.3, h), y: lerp(SURF, tip.y + 5.5, h) - Math.sin(h * Math.PI) * 9 };
-      fang = lerp(0, -Math.PI / 2, h);
+      fang = lerp(0, Math.PI / 2, h);
       C('grey', 0.9); seg(tip.x, tip.y, fish.x, fish.y - 2, 0.3);
     } else {
       fish = { x: tip.x + Math.sin(t * 3) * 0.8, y: tip.y + 5.5 };
-      fang = -Math.PI / 2 + Math.sin(t * 3) * 0.12 + Math.sin(t * 9) * 0.12;
+      fang = Math.PI / 2 + Math.sin(t * 3) * 0.12 + Math.sin(t * 9) * 0.12;
       C('grey', 0.9); seg(tip.x, tip.y, fish.x, fish.y - 2.6, 0.3);
     }
     if (fish) {
-      g.save(); g.translate(fish.x, fish.y); g.rotate(fang + Math.PI);
+      g.save(); g.translate(fish.x, fish.y); g.rotate(fang);
       var wag = Math.sin(t * 10) * 0.6;
       C('acc'); ell(0, 0, 3.4, 1.35);
       poly([2.6, 0, 5 + wag * 0.3, -1.6 + wag, 5 - wag * 0.3, 1.6 + wag]);
@@ -355,113 +355,104 @@
     C('ink'); ell(x, y, 0.85, 0.6); C('acc'); circ(x + 0.7, y - 0.1, 0.3);
   }
 
-  // ---------- scene: prospector ----------
-  var ROCK = [];
-  (function () {
-    for (var x = 0; x <= 60; x += 1) {
-      var u = x / 60;
-      var h = 27 * Math.pow(Math.sin(u * Math.PI), 0.8) + (x > 3 && x < 57 ? (hash(x, 5) - 0.5) * 2.2 : 0);
-      if (u > 0.42 && u < 0.6) h += 3 * Math.sin((u - 0.42) / 0.18 * Math.PI);
-      ROCK.push(10 + x, GY - Math.max(0, h));
-    }
-  })();
-  function veinPt(s, wob) {
-    var x0 = 15, y0 = GY - 3, x1 = 64, y1 = GY - 20;
-    return { x: lerp(x0, x1, s), y: lerp(y0, y1, s) - Math.sin(s * Math.PI) * 6 + Math.sin(s * 19) * 0.9 + (wob || 0) };
+  // ---------- scene: eagle ----------
+  function drawRodent(x, y, t, running, look, nib) {
+    var bob = running ? Math.abs(Math.sin(t * 16)) * 0.35 : 0, hy = look ? -0.7 : (nib ? Math.max(0, Math.sin(t * 9)) * 0.3 : 0);
+    C('ink2'); quad(x + 1.5, y - 0.8, x + 3.2, y - 1.8 + Math.sin(t * 5) * 0.4, x + 4.6, y - 1.1, 0.3);
+    if (running) { seg(x - 0.9, y - 0.5, x - 0.9 + Math.sin(t * 16) * 0.6, y - 0.05, 0.35); seg(x + 0.9, y - 0.5, x + 0.9 - Math.sin(t * 16) * 0.6, y - 0.05, 0.35); }
+    else { seg(x - 0.9, y - 0.5, x - 1, y - 0.05, 0.35); seg(x + 0.9, y - 0.5, x + 1, y - 0.05, 0.35); }
+    ell(x, y - 1.15 - bob, 1.85, 1.1);
+    C('grey'); ell(x + 0.2, y - 0.7 - bob, 1.2, 0.45);
+    C('ink2'); ell(x - 1.7, y - 1.5 - bob + hy, 1, 0.78, look ? -0.6 : 0.1);
+    C('light'); circ(x - 1.1, y - 2.35 - bob + hy, 0.5);
+    C('ink'); circ(x - 2.05, y - 1.75 - bob + hy * 1.2, 0.22);
+    C('acc'); circ(x - 2.65, y - 1.4 - bob + hy * 1.4, 0.2);
   }
-  function veinPath(w) {
-    g.lineWidth = w; g.beginPath();
-    for (var s = 0; s <= 1.0001; s += 0.02) { var p = veinPt(s); if (s === 0) g.moveTo(p.x, p.y); else g.lineTo(p.x, p.y); }
-    g.stroke();
+  // Eagle in its own frame faces +x. k: wing raise, 1 = fully up, negative = downstroke.
+  var WING = [1.6, -0.8, 2.0, -4.4, 0.4, -7.8, -2.4, -10.8, -5.0, -12.8, -6.0, -11.2, -5.6, -9.4, -5.0, -7.6, -4.6, -6.6, -4.2, -5.0, -3.6, -4.2, -3.2, -2.6, -2.6, -0.6];
+  function eagleWing(k, col, fold) {
+    C(col, 1);
+    if (fold) { poly([1.8, -1, -1.6, -2.9, -8.2, -2.4, -7.6, -0.8, -2.2, -0.2]); C('ink2', 0.8); seg(-2, -2, -7.2, -1.6, 0.3); return; }
+    var pts = [];
+    for (var i = 0; i < WING.length; i += 2) pts.push(WING[i] - (1 - Math.abs(k)) * WING[i + 1] * -0.15, WING[i + 1] * k - 0.2);
+    poly(pts);
+    // leading edge and feather rows for texture
+    C('ink', 1); g.lineWidth = 0.75; g.beginPath(); g.moveTo(pts[0], pts[1]); for (var e = 2; e <= 8; e += 2) g.lineTo(pts[e], pts[e + 1]); g.stroke();
+    C(col === 'ink2' ? 'grey' : 'ink2', 0.9);
+    for (var r = 0; r < 3; r++) { g.lineWidth = 0.28; g.beginPath(); g.moveTo(-0.2 - r * 0.9, (-1.2 - r * 0.2) * k); g.quadraticCurveTo(-1.6 - r * 1.2, (-5.5 - r * 1.2) * k, -3.1 - r * 0.8, (-9.4 - r * 0.9) * k); g.stroke(); }
+    C(col, 1);
+    // primary feathers fanned at the wing tip
+    for (var f = 0; f < 5; f++) {
+      var bx = lerp(-5.4, -6.6, f / 4), by = lerp(-12.4, -9.4, f / 4) * k;
+      var ang = Math.atan2(-12 * k, -6) + (f - 2) * 0.24 + (k < 0 ? 0.2 : -0.2);
+      seg(bx, by, bx + Math.cos(ang) * 2.3, by + Math.sin(ang) * 2.3, 0.5);
+    }
+    // covert feathers line
+    C(col === 'ink' ? 'ink2' : 'grey', 0.9); g.lineWidth = 0.3; g.beginPath(); g.moveTo(1.2, -2.2 * k); g.quadraticCurveTo(-2, -6 * k, -4.6, -8.8 * k); g.stroke();
   }
-  function sceneProsp(tau, t) {
-    var i, k;
-    var pts = [10, GY + 0.3].concat(ROCK).concat([70, GY + 0.3]);
-    g.globalCompositeOperation = 'destination-out'; C('ink', 1); poly(pts); g.globalCompositeOperation = 'source-over';
-    C('ink2', 0.6); poly(pts);
-    g.save(); g.beginPath(); g.moveTo(pts[0], pts[1]); for (i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.closePath(); g.clip();
-    C('ink2', 0.85); for (k = 0; k < 6; k++) quad(8, GY - 4 - k * 4.5, 40, GY - 9 - k * 4.5 + (k % 2) * 3, 72, GY - 6 - k * 4.5, 0.35);
-    var look = tau > 1.0 && tau < 4.2 ? Math.sin(prog(tau, 1.0, 4.2) * Math.PI) : 0;
-    var glow = 0.5 + 0.5 * Math.sin(t * 1.6);
-    C('light', 0.5 + 0.4 * Math.max(look, glow * 0.5)); veinPath(3.6 + look * 1.5);
-    C('acc', 1); veinPath(2.1);
-    C('acc2', 1); veinPath(0.8);
-    for (k = 0; k < 9; k++) {
-      var p = veinPt((t * 0.07 + k / 9) % 1), tw = Math.sin(t * 5 + k * 1.7);
-      if (tw > 0.2) { C('white', 1); circ(p.x, p.y, 0.55 * tw + 0.15); }
-    }
-    for (k = 0; k < 14; k++) { var q = veinPt(hash(k, 21), (hash(k, 22) - 0.5) * 4); C('acc', 0.9); ell(q.x, q.y, 0.7, 0.45, hash(k, 23) * 3); }
+  function drawEagle(x, y, vx, vy, mode, k, t) {
+    g.save(); g.translate(x, y);
+    var flip = vx < 0; if (flip) g.scale(-1, 1);
+    g.rotate(Math.atan2(vy, Math.abs(vx)));
+    g.scale(1.55, 1.55);
+    if (mode !== 'dive') { g.save(); g.translate(1.4, 0.3); g.rotate(0.12); eagleWing(clamp(k * 0.85 + 0.05, -1, 1.2), 'ink', false); g.restore(); }
+    C('light'); poly([-3.6, -0.7, -7.6, -2, -8.2, 0.1, -7.6, 2, -3.6, 0.8]);
+    C('grey', 0.8); seg(-4.4, -0.4, -7.6, -1, 0.22); seg(-4.4, 0.4, -7.6, 1, 0.22);
+    C('ink'); g.beginPath(); g.moveTo(4.6, -0.9); g.bezierCurveTo(3, -2.2, -2, -2, -4.2, -0.6); g.lineTo(-4.2, 0.9); g.bezierCurveTo(-1.5, 2.1, 2.5, 1.9, 4.4, 0.7); g.closePath(); g.fill();
+    C('ink2', 0.9); ell(-0.6, 0.9, 3, 0.6);
+    if (mode === 'grab' || mode === 'carry') {
+      C('acc2'); seg(0.8, 1, 2.4, 3.7, 0.65); seg(-0.6, 1, 0.6, 3.9, 0.65);
+      C('acc'); g.lineWidth = 0.38; g.beginPath(); g.arc(2.7, 4, 0.65, -0.5, 2.4); g.stroke(); g.beginPath(); g.arc(0.9, 4.2, 0.65, -0.5, 2.4); g.stroke();
+    } else { C('acc2'); seg(-0.6, 1.2, -2.6, 1.5, 0.6); }
+    C('light'); ell(4.7, -0.9, 1.6, 1.35); ell(3.4, -0.4, 1.2, 1.25);
+    C('acc'); poly([5.9, -1.4, 7.6, -0.9, 7.4, 0.2, 6.8, -0.2, 6, 0]);
+    C('ink'); circ(5.3, -1.25, 0.3);
+    C('grey', 0.9); seg(4.9, -1.5, 5.8, -1.6, 0.2);
+    eagleWing(k, 'ink2', mode === 'dive');
     g.restore();
-    C('ink2', 1); g.lineWidth = 0.5; g.beginPath(); g.moveTo(ROCK[0], ROCK[1]); for (i = 2; i < ROCK.length; i += 2) g.lineTo(ROCK[i], ROCK[i + 1]); g.stroke();
-    C('ink2'); seg(11, GY - 0.5, 15.5, GY - 9, 0.55);
-    C('ink'); g.lineWidth = 0.8; g.beginPath(); g.moveTo(13.4, GY - 10.6); g.quadraticCurveTo(15.6, GY - 9.6, 17.6, GY - 7.4); g.stroke();
-    C('acc', 0.9); circ(17, GY - 0.6, 0.5); circ(19.2, GY - 0.4, 0.35); circ(8, GY - 0.5, 0.4);
-
-    // the gentleman
-    var gx = -16, hipY = GY - 8.2;
-    var bendT = tau < 0 ? 0 : tau < 0.9 ? ease(tau / 0.9) : tau < 3.6 ? 1 : 1 - ease(prog(tau, 3.6, 4.3));
-    var ang = bendT * 0.6;
-    var lift = 0, tilt = 0;
-    if (tau > 4.4 && tau < 5.8) { var hp = Math.sin(prog(tau, 4.4, 5.8) * Math.PI); lift = hp * 3.2; tilt = hp * 0.45; }
-    var idleSway = tau < 0 ? Math.sin(t * 1.3) * 0.04 : 0;
-    C('ink2'); seg(gx - 0.9, hipY, gx - 1.1, GY - 0.6, 1.35); seg(gx + 0.9, hipY, gx + 1.3, GY - 0.6, 1.35);
-    C('ink'); ell(gx - 0.8, GY - 0.45, 1.3, 0.55); ell(gx + 1.7, GY - 0.45, 1.3, 0.55);
-    g.save(); g.translate(gx, hipY); g.rotate(ang + idleSway);
-    C('ink'); poly([-2.1, -1, -3.8, 4.6, -2.4, 4.2, -1.2, 2.2]);
-    g.beginPath(); g.moveTo(-2.3, 0.6); g.lineTo(-2.2, -6.8); g.quadraticCurveTo(0, -8.3, 2.2, -6.8); g.lineTo(2.3, 0.2); g.closePath(); g.fill();
-    C('pale'); poly([0.1, -7.6, 1.8, -7.3, 1.1, -3.3]);
-    C('acc'); ell(0.6, -7.5, 0.55, 0.35, 0.4); ell(1.5, -7.5, 0.55, 0.35, -0.4);
-    C('acc2'); circ(1.5, -4.6, 0.25); circ(1.6, -3.1, 0.25);
-    C('light'); circ(0.7, -9.7, 1.9);
-    C('ink2'); g.lineWidth = 0.4; g.beginPath(); g.moveTo(0.9, -8.7); g.quadraticCurveTo(1.9, -9.2, 2.8, -8.4); g.stroke();
-    C('acc'); ring(1.8, -10.1, 0.62, 0.28); seg(1.3, -9.6, 0.9, -7.8, 0.12);
-    var ex1 = lerp(2.2, 3.6, bendT), ey1 = lerp(-4.2, -6.2, bendT), hx = lerp(2.4, 4.6, bendT), hy = lerp(-2.6, -4.2, bendT);
-    C('ink'); seg(1, -6.4, ex1, ey1, 1.1); seg(ex1, ey1, hx, hy, 1);
-    C('light'); circ(hx, hy, 0.5);
-    g.save(); g.translate(0.5, -11.4 - lift); g.rotate(-tilt);
-    C('ink'); ell(0, 0, 2.9, 0.5); g.fillRect(-1.75, -4.6, 3.5, 4.5); ell(0, -4.6, 1.75, 0.4);
-    C('acc'); g.fillRect(-1.75, -1.3, 3.5, 0.75);
-    g.restore();
-    g.restore();
-    if (lift > 0) {
-      var hatX = gx + 0.5 + Math.sin(ang) * 11.4, hatY = hipY - Math.cos(ang) * 11.4 - lift;
-      C('ink'); seg(gx - 0.8, hipY - 6.3, hatX - 1.4, hatY + 0.4, 1); C('light'); circ(hatX - 1.4, hatY + 0.2, 0.5);
+  }
+  function eagleState(tau, t) {
+    var orbit = function (tt) { return { x: -10 + 18 * Math.cos(tt * 0.5), y: GY - 31 + 3.5 * Math.sin(tt * 0.5), vx: -Math.sin(tt * 0.5), vy: 0.15 * Math.cos(tt * 0.5) }; };
+    var G = { x: 5.5, y: GY - 7.4 };
+    var t0 = t - tau, P0 = orbit(t0);
+    if (tau < 0) { var o = orbit(t); return { x: o.x, y: o.y, vx: o.vx, vy: o.vy, mode: 'soar', k: 0.62 + 0.1 * Math.sin(t * 1.7) + (Math.sin(t * 0.7) > 0.55 ? Math.sin(t * 8) * 0.55 : 0) }; }
+    if (tau < 0.5) { var p = ease(tau / 0.5); return { x: P0.x, y: P0.y - p * 1.2, vx: lerp(P0.vx, G.x - P0.x, p), vy: lerp(P0.vy, (G.y - P0.y) * 0.5, p), mode: p > 0.6 ? 'dive' : 'soar', k: lerp(0.3, 1, p) }; }
+    if (tau < 1.5) { var q = easeIn(prog(tau, 0.5, 1.5)); return { x: lerp(P0.x, G.x - 1.5, q), y: lerp(P0.y - 1.2, G.y - 1.5, q), vx: G.x - P0.x, vy: G.y - P0.y, mode: 'dive', k: 0 }; }
+    if (tau < 2.0) { var r = easeOut(prog(tau, 1.5, 2.0)); return { x: lerp(G.x - 1.5, G.x, r), y: lerp(G.y - 1.5, G.y, r), vx: 1, vy: lerp(0.6, -0.2, r), mode: 'grab', k: 1.15 }; }
+    var s = ease(prog(tau, 2.0, 5.5));
+    return { x: lerp(G.x, 75, s), y: lerp(G.y, GY - 44, s) - Math.sin(s * Math.PI) * 4, vx: 1, vy: -0.45 + s * 0.3, mode: 'carry', k: 0.25 + Math.sin(t * 7.5) * 0.8 };
+  }
+  function sceneEagle(tau, t) {
+    var k;
+    // scenery: a knoll, rocks, a seed head the mouse is after
+    C('pale', 1); poly([-40, GY + 0.2, -32, GY - 5, -22, GY - 7.5, -12, GY - 5.5, -4, GY + 0.2]);
+    C('light', 1); g.lineWidth = 0.5; g.beginPath(); g.moveTo(-40, GY); g.quadraticCurveTo(-24, GY - 9.5, -4, GY); g.stroke();
+    C('ink2', 1); ell(20, GY - 1, 3, 1.6); C('grey', 1); ell(19.2, GY - 1.8, 1.4, 0.5); C('ink2', 1); ell(25, GY - 0.7, 1.6, 0.9);
+    var sway = Math.sin(t * 1.3) * 0.4;
+    C('acc2', 1); quad(2.6, GY, 2.8, GY - 4, 2.2 + sway, GY - 7.5, 0.4); quad(3.6, GY, 4, GY - 3, 4.6 + sway, GY - 5.5, 0.35);
+    for (k = 0; k < 5; k++) { C(k % 2 ? 'acc' : 'light', 1); ell(2.2 + sway + Math.sin(k) * 0.2, GY - 7.8 - k * 0.7, 0.55, 0.4, 0.5); }
+    // rodent
+    var e = eagleState(tau, t);
+    if (tau < 1.75) {
+      var run = tau < -0.6, rx = run ? lerp(44, 6.5, ease(prog(tau, -7, -0.6))) : 6.5;
+      g.save(); g.translate(rx, GY); g.scale(1.35, 1.35); drawRodent(0, 0, t, run, tau > 0.9, !run && tau < 0.9); g.restore();
+      if (tau > 0.9 && tau < 1.6) { C('acc'); g.fillRect(rx - 2.4, GY - 7.2, 0.6, 2.2); circ(rx - 2.1, GY - 4.4, 0.35); }
     }
-    // microscope on a small tripod
-    var mx = -6.2;
-    C('ink2'); seg(mx, GY - 7.6, mx - 2.4, GY - 0.3, 0.4); seg(mx, GY - 7.6, mx + 2.3, GY - 0.3, 0.4); seg(mx, GY - 7.6, mx + 0.1, GY - 0.3, 0.4);
-    C('ink'); g.fillRect(mx - 2.6, GY - 8.2, 5.2, 0.6);
-    C('ink'); g.fillRect(mx - 1.6, GY - 9.1, 3.4, 0.9);
-    C('acc', 1); ell(mx - 0.6, GY - 9.6, 0.9, 0.45);
-    if (Math.sin(t * 4) > 0) { C('white'); circ(mx - 0.4, GY - 9.75, 0.25); }
-    C('ink2'); g.lineWidth = 0.9; g.beginPath(); g.moveTo(mx + 1.3, GY - 9); g.quadraticCurveTo(mx + 2.4, GY - 13, mx + 0.4, GY - 14.4); g.stroke();
-    var eyeP = { x: mx - 2.1, y: GY - 15.6 }, objP = { x: mx - 0.4, y: GY - 10.6 };
-    C('acc'); seg(eyeP.x, eyeP.y, objP.x, objP.y, 1.15);
-    C('acc2'); seg(eyeP.x - 0.4, eyeP.y - 0.8, eyeP.x + 0.15, eyeP.y + 0.1, 1.3);
-    C('ink'); seg(objP.x - 0.2, objP.y - 0.4, objP.x + 0.1, objP.y + 0.5, 0.7);
-    C('ink2'); circ(mx + 0.8, GY - 12.2, 0.55);
-
-    // the magnified view
-    var bub = prog(tau, 1.3, 1.9) * (1 - prog(tau, 4.4, 5.0));
-    if (bub > 0) {
-      var R = 9.5 * easeOut(bub), bx = mx + 7, by = GY - 30;
-      for (k = 0; k < 3; k++) { C('acc2', bub); circ(lerp(eyeP.x + 1.5, bx - 3, (k + 1) / 4), lerp(eyeP.y - 2, by + R * 0.9, (k + 1) / 4), 0.35 + k * 0.25); }
-      g.save(); g.beginPath(); g.arc(bx, by, R, 0, TAU); g.clip();
-      C('pale', 1); g.fillRect(bx - R, by - R, R * 2, R * 2);
-      for (var gy2 = -3; gy2 <= 3; gy2++) for (var gx2 = -4; gx2 <= 4; gx2++) {
-        var cxx = bx + gx2 * 3.2 + (gy2 % 2 ? 1.6 : 0), cyy = by + gy2 * 2.8;
-        var hh = hash(gx2 + 9, gy2 + 9), sz = 1.2 + hh * 0.7, rot = t * 0.3 + hh * 3;
-        var inVein = Math.abs(gy2 * 2.8 - gx2 * 0.9) < 5;
-        C(inVein ? (hh > 0.5 ? 'acc' : 'acc2') : (hh > 0.6 ? 'light' : 'pale'), 1);
-        g.save(); g.translate(cxx, cyy); g.rotate(rot);
-        poly([0, -sz * 1.3, sz, 0, 0, sz * 1.3, -sz, 0]);
-        g.restore();
-        if (inVein && Math.sin(t * 4 + hh * 20) > 0.7) { C('white'); circ(cxx, cyy - 0.4, 0.45); }
-      }
-      g.restore();
-      C('ink2', 1); ring(bx, by, R, 0.55); C('acc2', 1); ring(bx, by, Math.max(0.1, R - 0.6), 0.3);
+    // shadow during the dive
+    if (tau > 0.5 && tau < 2.0) { var sh = prog(tau, 0.5, 1.7); C('ink2', 0.15 + sh * 0.35); ell(e.x, GY - 0.2, 2 + sh * 4, 0.45); }
+    // dust puff on the grab
+    if (tau > 1.7 && tau < 2.6) {
+      var d = prog(tau, 1.7, 2.6);
+      for (k = 0; k < 12; k++) { var a = Math.PI + k / 11 * Math.PI; C(k % 2 ? 'grey' : 'light', 1 - d); circ(6 + Math.cos(a) * (2 + d * 7), GY - 0.5 + Math.sin(a) * (1 + d * 3), 0.5 + (1 - d) * 0.4); }
     }
-    if (tau > 4.5 && tau < 6.2) for (k = 0; k < 5; k++) if (Math.sin(t * 7 + k * 1.9) > 0) sparkle(gx - 4 + k * 2.4, GY - 25 - (k % 2) * 2.5, 0.7, k % 2 ? 'acc2' : 'acc');
+    drawEagle(e.x, e.y, e.vx, e.vy, e.mode, e.k, t);
+    if (tau >= 1.75) {
+      // the catch hangs from the talons
+      var ang = Math.atan2(e.vy, Math.abs(e.vx)), ca = Math.cos(ang), sa = Math.sin(ang);
+      var tx = e.x + (1.8 * ca - 4.4 * sa) * 1.55, ty = e.y + (1.8 * sa + 4.4 * ca) * 1.55;
+      g.save(); g.translate(tx, ty); g.rotate(-1.35 + Math.sin(t * 6) * 0.15); g.scale(1.35, 1.35); drawRodent(-1.2, 2.6, t, true, false, false); g.restore();
+      if (tau < 3.2) for (k = 0; k < 4; k++) if (Math.sin(t * 7 + k * 1.9) > 0) sparkle(e.x - 6 + k * 4, e.y - 9 - (k % 2) * 2, 0.8, k % 2 ? 'acc2' : 'acc');
+    }
   }
 
   // ---------- scene: spider ----------
@@ -476,9 +467,9 @@
     C('light', 1); ell(-24, GY - 39, 1.4, 2); ell(25, GY - 37, 1.2, 1.8);
     var webA = 'acc2';
     var drop = easeOut(prog(tau, -3, -1));
-    var sp = { x: HUB.x, y: lerp(-2, HUB.y, drop) }, moving = tau < 6.5;
+    var sp = { x: HUB.x, y: lerp(-2, HUB.y, drop) }, moving = tau < 10.5;
     if (tau < 0.5) { C(webA, 0.9); seg(HUB.x, -2, HUB.x, sp.y, 0.3); }
-    var spokeP = prog(tau, -1, 1.8);
+    var spokeP = prog(tau, -1, 3.2);
     if (spokeP > 0) {
       C(webA, 0.95);
       seg(-WRX - 1, HUB.y - 7, -25.6, GY - 32, 0.3); seg(WRX + 1, HUB.y - 6, 26.4, GY - 30, 0.3);
@@ -492,7 +483,7 @@
       C(webA, 0.9); seg(HUB.x, HUB.y, lerp(HUB.x, ex, p), lerp(HUB.y, ey, p), 0.32);
       if (p < 1) sp = { x: lerp(HUB.x, ex, p), y: lerp(HUB.y, ey, p) };
     }
-    var spiral = prog(tau, 1.8, 6.5), N = 380, n = Math.floor(spiral * N), prev = null;
+    var spiral = prog(tau, 3.2, 10.5), N = 380, n = Math.floor(Math.sqrt(spiral) * N), prev = null;
     for (i = 0; i <= n; i++) {
       var s = i / N, th = s * 5.5 * TAU, r = 0.14 + 0.86 * s;
       var q = { x: HUB.x + Math.cos(th) * WRX * r, y: HUB.y + Math.sin(th) * WRY * r };
@@ -506,8 +497,8 @@
         var s2 = ((t * 0.05 + i / 6) % 1), th2 = s2 * 5.5 * TAU, r2 = 0.14 + 0.86 * s2;
         C('white', 1); circ(HUB.x + Math.cos(th2) * WRX * r2, HUB.y + Math.sin(th2) * WRY * r2, 0.5);
       }
-      var gp = prog(tau, 7, 9.5), gx = lerp(40, 11, easeOut(gp)), gy = HUB.y - 4 + Math.sin(t * 6) * (1 - gp) * 1.5;
-      if (tau > 7) { drawFly(gx, gy, t); if (gp >= 1 && Math.sin(t * 20) > 0) { C('acc'); ring(gx, gy, 1.6, 0.2); } }
+      var gp = prog(tau, 11, 13.5), gx = lerp(40, 11, easeOut(gp)), gy = HUB.y - 4 + Math.sin(t * 6) * (1 - gp) * 1.5;
+      if (tau > 11) { drawFly(gx, gy, t); if (gp >= 1 && Math.sin(t * 20) > 0) { C('acc'); ring(gx, gy, 1.6, 0.2); } }
     }
     drawSpider(sp.x, sp.y, t, moving);
   }
@@ -526,75 +517,78 @@
     g.restore();
   }
 
-  // ---------- scene: whale ----------
-  var plankton = [];
-  for (var pi = 0; pi < 260; pi++) plankton.push({ x: -2 + hash(pi, 31) * 26, y: SURF - 2.5 + Math.pow(hash(pi, 32), 1.6) * 12, ph: hash(pi, 33) * TAU, z: 0.5 + hash(pi, 34) * 0.5, eaten: false });
-  var lastTauW = -99;
-  function whalePose(tau) {
-    var x, y, a, open, pouch, p;
-    if (tau < 0) { p = prog(tau, -6, 0); x = lerp(-60, -10, p); y = SURF + 10 + Math.sin(tau * 1.3) * 0.6; a = Math.sin(tau) * 0.03; open = 0.04; pouch = 0; }
-    else if (tau < 1.0) { p = ease(tau); x = lerp(-10, 0, p); y = lerp(SURF + 10, SURF + 12, p); a = lerp(0, -0.95, p); open = lerp(0.04, 0.25, p); pouch = 0.1 * p; }
-    else if (tau < 1.9) { p = easeOut(prog(tau, 1.0, 1.9)); x = lerp(0, 9, p); y = lerp(SURF + 12, SURF - 13, p); a = lerp(-0.95, -1.02, p); open = lerp(0.25, 0.85, p); pouch = p; }
-    else if (tau < 2.6) { p = prog(tau, 1.9, 2.6); x = 9 + p * 0.8; y = SURF - 13 - Math.sin(p * Math.PI) * 0.8; a = -1.02 + p * 0.06; open = lerp(0.85, 0.06, ease(p)); pouch = 1; }
-    else if (tau < 3.8) { p = easeIn(prog(tau, 2.6, 3.8)); x = lerp(9.8, 24, p); y = lerp(SURF - 13, SURF + 10, p); a = lerp(-0.96, -0.15, p); open = 0.06; pouch = lerp(1, 0.7, p); }
-    else { p = prog(tau, 3.8, 10); x = lerp(24, 80, p); y = SURF + 10 - Math.sin(p * Math.PI); a = lerp(-0.2, 0.05, ease(p * 3)); open = 0.05; pouch = lerp(0.7, 0.1, ease(p * 2)); }
-    return { x: x, y: y, a: a, open: open, pouch: pouch };
+  // ---------- scene: shark ----------
+  var school = [];
+  for (var si = 0; si < 44; si++) school.push({ a: hash(si, 71) * TAU, r: 1.5 + hash(si, 72) * 6, dy: (hash(si, 73) - 0.5) * 4, sp: 0.7 + hash(si, 74) * 0.6 });
+  var BALL = { x: 12, y: SURF + 4.5 };
+  function sharkPose(tau) {
+    var x, y, a, open = 0, p;
+    if (tau < -1) { p = prog(tau, -8, -1); x = lerp(-70, -12, p); y = SURF + 4.4 + Math.sin(tau * 1.4) * 0.3; a = Math.sin(tau * 1.4) * 0.03; }
+    else if (tau < 0.3) { p = ease(prog(tau, -1, 0.3)); x = lerp(-12, -3, p); y = lerp(SURF + 4.4, SURF + 13, p); a = lerp(0, -1.15, p); }
+    else if (tau < 1.25) { p = easeOut(prog(tau, 0.3, 1.25)); x = lerp(-3, 7, p); y = lerp(SURF + 13, SURF - 16, p); a = lerp(-1.15, -1.0, p); open = tau < 1.12 ? ease(prog(tau, 0.55, 1.0)) * 0.6 : 0.6 * (1 - prog(tau, 1.12, 1.2)); }
+    else if (tau < 1.9) { p = prog(tau, 1.25, 1.9); x = lerp(7, 15, p); y = SURF - 16 - Math.sin(p * Math.PI) * 2.5 + p * 4; a = lerp(-1.0, 0.65, ease(p)); }
+    else if (tau < 2.6) { p = easeIn(prog(tau, 1.9, 2.6)); x = lerp(15, 23, p); y = lerp(SURF - 12, SURF + 9, p); a = lerp(0.65, 1.0, p); }
+    else { p = prog(tau, 2.6, 9); x = lerp(23, 85, p); y = lerp(SURF + 9, SURF + 4.4, ease(p * 2.5)); a = lerp(1.0, 0, ease(p * 4)); }
+    return { x: x, y: y, a: a, open: open };
   }
-  function drawWhaleBody(w, t) {
+  function sharkMouth(w) { var c = Math.cos(w.a), s = Math.sin(w.a); return { x: w.x + (12 * c - 0.6 * s) * 1.3, y: w.y + (12 * s + 0.6 * c) * 1.3 }; }
+  function drawShark(w, t) {
     g.save(); g.translate(w.x, w.y); g.rotate(w.a); g.scale(1.3, 1.3);
-    var fl = Math.sin(t * 2.4) * 2.2;
-    C('acc'); g.beginPath(); g.moveTo(-34, -1.4); g.quadraticCurveTo(-40, -2 + fl * 0.3, -44, -5.5 + fl); g.quadraticCurveTo(-41, -1 + fl * 0.5, -40.5, fl * 0.4);
-    g.quadraticCurveTo(-41, 1 + fl * 0.5, -44, 5.5 + fl); g.quadraticCurveTo(-40, 2 + fl * 0.3, -34, 1.4); g.closePath(); g.fill();
-    var Hx = -7, Hy = 0.4;
-    g.beginPath(); g.moveTo(-35, -1.2); g.bezierCurveTo(-26, -6.5, -12, -7.6, -2, -6); g.quadraticCurveTo(3.5, -4.6, 5, -2.2);
-    g.lineTo(Hx, Hy); g.bezierCurveTo(-16, 5.5, -28, 4.5, -35, 1.2); g.closePath(); g.fill();
-    g.save(); g.clip(); C('ink', 0.28); ell(-14, -7, 22, 4.5); C('white', 0.25); ell(-14, 3.5, 20, 2.2); g.restore();
+    var sw = Math.sin(t * 6) * 0.7;
+    C('acc'); poly([-11, -0.6, -16.2, -6.4 + sw, -14.6, -0.3, -15.8, 3.6 + sw * 0.5, -11, 0.8]);
+    poly([0.6, -2.7, -3.4, -8.4, -4.6, -2.5]);
+    poly([-8.7, -1.4, -9.9, -3, -10.3, -1.1]);
+    var H = { x: 6.6, y: 1.3 };
+    g.beginPath(); g.moveTo(12.6, 0.3); g.bezierCurveTo(11.4, -2.6, 4.6, -3.7, -2, -3.2);
+    g.bezierCurveTo(-7, -2.6, -10, -1.2, -11.6, -0.5); g.lineTo(-11.6, 0.7);
+    g.bezierCurveTo(-8, 1.9, -2, 3.1, 3, 2.9); g.lineTo(H.x, H.y); g.lineTo(12.4, 0.8); g.closePath(); g.fill();
+    g.save(); g.clip(); C('pale', 1); ell(0, 3, 12, 1.9); C('ink', 0.22); ell(-1, -3.4, 12, 1.5); g.restore();
+    C('acc'); poly([3.6, 1.9, -1.2, 6.8, 0.6, 2.3]);
+    C('ink2', 0.9); for (var i = 0; i < 3; i++) seg(4.2 + i * 0.75, -0.7, 4.0 + i * 0.75, 1.1, 0.25);
+    C('ink'); circ(9.3, -0.9, 0.42); C('white'); circ(9.45, -1.05, 0.15);
+    // lower jaw, rotated open about the hinge
     var o = w.open, co = Math.cos(o), so = Math.sin(o);
-    function J(x, y) { var dx = x - Hx, dy = y - Hy; return [Hx + dx * co - dy * so, Hy + dx * so + dy * co]; }
-    var jt = J(4.6, 0.2);
-    var bul = 2.5 + w.pouch * 6.5;
-    if (o > 0.08) {
-      C('ink2'); poly([Hx, Hy, 5, -2.2, jt[0], jt[1]]); C('acc', 0.5); poly([Hx, Hy, 5, -2.2, jt[0], jt[1]]);
-      C('light', 1); for (var b = 0; b < 12; b++) { var s = b / 12, ux = lerp(Hx + 1, 4.4, s), uy = lerp(Hy - 0.4, -2.1, s); seg(ux, uy, ux + so * 1.6, uy + co * 1.6 * 0.9, 0.3); }
+    function J(x, y) { var dx = x - H.x, dy = y - H.y; return [H.x + dx * co - dy * so, H.y + dx * so + dy * co]; }
+    var j1 = J(11.6, 1.2), j2 = J(10.4, 2.6), j3 = J(6, 3);
+    if (o > 0.05) {
+      C('ink2'); poly([H.x, H.y, 12.4, 0.8, j1[0], j1[1]]);
+      C('white'); for (i = 0; i < 5; i++) { var ux = lerp(7.4, 12, i / 4), uy = lerp(1.15, 0.85, i / 4); poly([ux - 0.35, uy, ux + 0.35, uy, ux, uy + 0.75]); }
     }
-    C('acc2');
-    g.beginPath(); g.moveTo(Hx, Hy); g.lineTo(jt[0], jt[1]);
-    var c1 = J(0, 1.6 + bul * 0.9), c2 = J(-14, 3.5 + bul);
-    g.bezierCurveTo(c1[0], c1[1], c2[0], c2[1], -24, 4.2); g.lineTo(-16, 3.2); g.closePath(); g.fill();
-    g.save(); g.clip();
-    for (var k = 0; k < 9; k++) {
-      var a1 = J(4.4 - k * 0.3, 0.3 + k * 0.45), a2 = J(-20, 3 + k * (0.55 + bul * 0.14));
-      C(k % 2 ? 'white' : 'acc', k % 2 ? 0.7 : 0.55);
-      quad(a1[0], a1[1], (a1[0] + a2[0]) / 2, (a1[1] + a2[1]) / 2 + bul * 0.35, a2[0], a2[1], 0.5);
+    C('acc'); poly([H.x, H.y, j1[0], j1[1], j2[0], j2[1], j3[0], j3[1]]);
+    C('pale'); poly([j2[0], j2[1], j3[0], j3[1], J(6.4, 2.4)[0], J(6.4, 2.4)[1], J(10, 1.9)[0], J(10, 1.9)[1]]);
+    if (o > 0.05) {
+      C('white'); for (i = 0; i < 4; i++) { var b = J(lerp(7.6, 11.2, i / 3), 1.25); var tip = J(lerp(7.6, 11.2, i / 3), 0.55); poly([b[0] - 0.3, b[1], b[0] + 0.3, b[1], tip[0], tip[1]]); }
     }
-    g.restore();
-    if (o > 0.08) { C('light', 1); g.lineWidth = 0.9; g.beginPath(); g.moveTo(Hx + 0.6, Hy - 0.6); g.lineTo(4.6, -2.3); g.stroke(); }
-    C('white'); circ(-3.8, -2.6, 0.75); C('ink'); circ(-3.6, -2.6, 0.45);
-    C('ink2', 0.9); [[-1, -4.6], [1.3, -3.9], [-3, -5.3], [2.8, -3]].forEach(function (p) { circ(p[0], p[1], 0.35); });
-    C('acc2'); g.save(); g.translate(-13, 3); g.rotate(0.6 + Math.sin(t * 1.5) * 0.1); ell(-5, 0, 6, 1.1); g.restore();
     g.restore();
   }
-  function sceneWhale(tau, t) {
-    if (tau < -5 || tau < lastTauW - 1) plankton.forEach(function (p) { p.eaten = false; });
-    lastTauW = tau;
-    var w = whalePose(tau);
-    drawWhaleBody(w, t);
-    var co = Math.cos(w.a), so = Math.sin(w.a);
+  function drawMiniFish(x, y, ang, col) {
+    g.save(); g.translate(x, y); g.rotate(ang);
+    C(col, 1); ell(0, 0, 1.1, 0.45); poly([-0.8, 0, -1.7, -0.6, -1.7, 0.6]);
+    g.restore();
+  }
+  function sceneShark(tau, t) {
+    var w = sharkPose(tau), i;
+    drawShark(w, t);
     C('light', 0.5); g.fillRect(-120, SURF + 0.2, 260, ROWS);
-    plankton.forEach(function (p, i) {
-      if (p.eaten) return;
-      var x = p.x + Math.sin(t * 0.7 + p.ph) * 1.4, y = p.y + Math.sin(t * 1.1 + p.ph * 2) * 0.9;
-      var dx = x - w.x, dy = y - w.y;
-      var lx = (dx * co + dy * so) / 1.3, ly = (-dx * so + dy * co) / 1.3;
-      if (w.open > 0.3 && lx > -7 && lx < 12) {
-        var angp = Math.atan2(ly - 0.4, lx + 7), angTop = Math.atan2(-2.6, 12);
-        if (angp > angTop && angp < w.open + 0.15) { p.eaten = true; return; }
-      }
-      var tw = 0.6 + 0.4 * Math.sin(t * 3 + p.ph * 3);
-      C(i % 3 === 0 ? 'acc' : 'acc2', 0.6 + p.z * 0.4 * tw);
-      circ(x, y, 0.25 + p.z * 0.28 * tw);
+    // bait ball: circles, then scatters when the shark comes up through it
+    var scatter = tau > 0.35 ? easeOut(prog(tau, 0.35, 2.2)) * 22 : 0;
+    var regroup = tau > 6 ? ease(prog(tau, 6, 10)) : 0;
+    scatter *= 1 - regroup;
+    school.forEach(function (f, n) {
+      var a = f.a + t * f.sp * (n % 2 ? 1 : -1);
+      var x = BALL.x + Math.cos(f.a) * scatter * 1.3 + Math.cos(a) * f.r, y = BALL.y + f.dy + Math.sin(a) * f.r * 0.45 + Math.sin(f.a) * scatter * 0.25;
+      if (y < SURF + 0.8) y = SURF + 0.8;
+      var dir = (n % 2 ? 1 : -1);
+      drawMiniFish(x, y, dir > 0 ? a + Math.PI / 2 : a - Math.PI / 2 + Math.PI, n % 3 ? 'acc2' : 'acc');
     });
-    [[1.0, 6, 40], [3.1, 18, 60]].forEach(function (sp) {
+    // the one that jumps, and gets caught
+    var M = sharkMouth(sharkPose(1.18));
+    if (tau > 0.5 && tau < 1.18) {
+      var p = prog(tau, 0.5, 1.18);
+      var fx = lerp(BALL.x - 2, M.x, p), fy = lerp(SURF, M.y, p) - Math.sin(p * Math.PI) * 5;
+      drawMiniFish(fx, fy, -0.8 + p * 0.6, 'acc');
+    }
+    [[0.5, 1, 40], [2.3, 22, 64]].forEach(function (sp) {
       var dt = tau - sp[0];
       if (dt < 0 || dt > 1.8) return;
       for (var i = 0; i < sp[2]; i++) {
@@ -603,23 +597,16 @@
         if (y < SURF + 0.6) { C(i % 4 ? 'acc2' : 'acc', clamp(1.4 - dt, 0, 1)); circ(x, y, 0.35 + hash(i, 44) * 0.35); }
       }
     });
-    if (tau > 1.9 && tau < 3.0) {
-      var co2 = Math.cos(w.a), so2 = Math.sin(w.a), mx2 = w.x + (5 * co2 + 1 * so2) * 1.3, my2 = w.y + (5 * so2 - 1 * co2) * 1.3;
-      for (var d = 0; d < 18; d++) {
-        var ph = ((tau - 1.9) * 1.6 + hash(d, 51)) % 1;
-        C(d % 3 ? 'acc2' : 'light', 1); circ(mx2 + (hash(d, 52) - 0.3) * 3 + ph * 2, my2 + ph * 16, 0.35 + hash(d, 53) * 0.3);
-      }
-    }
-    if (tau > 1.6 && tau < 2.6) for (var k = 0; k < 4; k++) if (Math.sin(t * 8 + k * 2) > 0.3) sparkle(w.x + 4 + k * 2.6, w.y - 12 - (k % 2) * 3, 0.8, 'acc');
+    if (tau > 1.18 && tau < 2.0) for (var k = 0; k < 5; k++) if (Math.sin(t * 8 + k * 2) > 0.2) sparkle(M.x - 4 + k * 2.4, M.y - 6 - (k % 2) * 2.5, 0.8, k % 2 ? 'acc2' : 'acc');
   }
 
   // ---------- frame ----------
   var SCENES = [
     { x: X.fisher, draw: sceneFisher },
     { x: X.cham, draw: sceneCham },
-    { x: X.prosp, draw: sceneProsp },
+    { x: X.eagle, draw: sceneEagle },
     { x: X.spider, draw: sceneSpider },
-    { x: X.whale, draw: sceneWhale }
+    { x: X.shark, draw: sceneShark }
   ];
   var ANCHOR = 0.6;
   function speedFor() { return Math.max(9, cols / 19); }
