@@ -446,6 +446,51 @@
     .compose-body { min-height: 230px; }
   }
 
+
+  /* How it works: four rows, each with a small real piece of the product */
+  .flow { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+  .flow-row { display: grid; grid-template-columns: 56px minmax(0, 1fr) minmax(0, 340px); gap: 28px; align-items: center; padding: 26px 0; border-bottom: 1px solid var(--line); }
+  .flow-n { font-size: 13px; font-weight: 700; color: var(--ink-faint); font-variant-numeric: tabular-nums; letter-spacing: .04em; align-self: start; padding-top: 3px; }
+  .flow-copy h3 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 6px; }
+  .flow-copy p { font-size: 14.5px; color: var(--ink-soft); line-height: 1.6; max-width: 460px; }
+  .flow-art { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; font-size: 13px; color: var(--ink-soft); }
+  .art-brief { display: flex; flex-direction: column; gap: 3px; }
+  .art-brief b { color: var(--ink); font-size: 14px; }
+  .art-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); }
+  .rank-row, .sl-item { display: flex; align-items: center; gap: 10px; }
+  .rank-av { width: 30px; height: 30px; border-radius: 50%; background: #e3e2fb; color: var(--accent); font-weight: 700; font-size: 11px; display: grid; place-items: center; flex-shrink: 0; }
+  .rank-av.av2 { background: #e4f3ea; color: #1f7a45; } .rank-av.av3 { background: #fbeee2; color: #9a5b18; }
+  .rank-who { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  .rank-who b { color: var(--ink); font-size: 13.5px; }
+  .rank-who span { font-size: 12px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rank-score { font-weight: 700; font-size: 12.5px; color: #16803c; background: #eaf7ef; border-radius: 999px; padding: 2px 9px; font-variant-numeric: tabular-nums; }
+  .rank-why { margin-top: 10px; font-size: 12.5px; line-height: 1.5; }
+  .art-short { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .art-pill { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; }
+  .art-btn { background: var(--ink); color: #fff; border-radius: 8px; padding: 7px 12px; font-size: 12.5px; font-weight: 600; }
+  .art-track { display: flex; flex-direction: column; gap: 8px; }
+  .track-line { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+  .dot-ok, .dot-wait { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot-ok { background: #16a34a; } .dot-wait { background: #d9a23a; }
+  .tag-int { font-size: 11px; font-weight: 700; color: #16803c; background: #eaf7ef; border-radius: 999px; padding: 1px 8px; flex-shrink: 0; }
+
+  /* Outreach demo: shortlist on the left, the email on the right */
+  .sl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .sl-item { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .sl-item.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .mail-head { display: flex; flex-direction: column; gap: 6px; padding-bottom: 14px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--ink); }
+  .mail-head span { display: inline-block; width: 64px; color: var(--ink-faint); font-size: 12px; font-weight: 600; }
+  .mail-state { font-size: 12px; font-weight: 600; color: var(--ink-faint); }
+  .mail-state.st-writing { color: var(--accent); }
+  .mail-state.st-sent { color: #16803c; }
+  .mail-state.st-reply { color: #fff; background: #16a34a; border-radius: 999px; padding: 3px 10px; }
+  .copy-btn.pressed { opacity: .45; }
+  @media (max-width: 820px) {
+    .flow-row { grid-template-columns: 1fr; gap: 12px; }
+    .flow-n { padding-top: 0; }
+    .flow-art { max-width: 420px; }
+  }
+
   /* Demo request modal */
   .demo-overlay { position: fixed; inset: 0; background: rgba(16,17,20,.45); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
   .demo-overlay.open { display: flex; }
@@ -533,105 +578,103 @@
 <div class="logos">
   <span><span class="tick">&#10003;</span> Ranked candidate lists in about a minute</span>
   <span><span class="tick">&#10003;</span> Every score explained</span>
-  <span><span class="tick">&#10003;</span> Outreach from your own LinkedIn</span>
+  <span><span class="tick">&#10003;</span> Sent from your own Gmail</span>
   <span><span class="tick">&#10003;</span> Works inside Claude too</span>
 </div>
 
 <section class="features" id="how">
   <div class="features-inner">
     <h2>From brief to booked call.</h2>
-    <p class="lede">Paste the role. Linkwell does the searching and the ranking, your recruiters do the judging and the talking. Everything lands in one portal, so nothing lives in a spreadsheet or someone's inbox.</p>
-    <div class="steps">
-      <div class="step">
-        <div class="num">1</div>
-        <h3>Find and rank</h3>
-        <p>From a job description, Linkwell searches licensed people data for the market you name and returns the best 25 to 100 people, ranked against your brief.</p>
-        <ul>
-          <li>Role, domain, seniority, skills and time in role, scored separately</li>
-          <li>A one-line reason and flags on every candidate</li>
-          <li>Off-title and out-of-area profiles dropped before you see them</li>
-        </ul>
-      </div>
-      <div class="step">
-        <div class="num">2</div>
-        <h3>Review and shortlist</h3>
-        <p>Each candidate has a full profile in the portal: career history, skills matched to the role, education and whether a business email exists.</p>
-        <ul>
-          <li>Shortlist or reject in one click</li>
-          <li>Pipeline view per role: new, shortlisted, contacted, replied, booked</li>
-          <li>A home page that shows what needs you today</li>
-        </ul>
-      </div>
-      <div class="step">
-        <div class="num">3</div>
-        <h3>Reach and track</h3>
-        <p>Queue your shortlist for outreach. The Chrome extension drafts a personal message on each LinkedIn profile, and every send and reply is logged back to the candidate.</p>
-        <ul>
-          <li>Connection notes, InMail, messages and email</li>
-          <li>Sent from your recruiters' own accounts, one person at a time</li>
-          <li>Replies, notes and follow-up drafts in one timeline</li>
-        </ul>
-      </div>
-    </div>
+    <p class="lede">Paste the role. Linkwell finds and ranks the people, your recruiters decide who is worth a conversation, and the outreach runs from their own inbox.</p>
+    <ol class="flow">
+      <li class="flow-row">
+        <span class="flow-n">01</span>
+        <div class="flow-copy">
+          <h3>Paste the brief</h3>
+          <p>Drop in the job spec. Linkwell reads the title, seniority, sector and location, then searches licensed people data for that market.</p>
+        </div>
+        <div class="flow-art art-brief">
+          <span class="art-label">Job spec</span>
+          <b>Head of Sales, Series B payments</b>
+          <span>London &middot; hybrid &middot; enterprise SaaS</span>
+        </div>
+      </li>
+      <li class="flow-row">
+        <span class="flow-n">02</span>
+        <div class="flow-copy">
+          <h3>Read a ranked list</h3>
+          <p>Every candidate gets a score against the brief and a plain sentence on why. People in the wrong role or the wrong city are dropped before you see them.</p>
+        </div>
+        <div class="flow-art art-rank">
+          <div class="rank-row"><span class="rank-av">PS</span><span class="rank-who"><b>Priya Shah</b><span>Head of Enterprise Sales, Northlane</span></span><span class="rank-score">92</span></div>
+          <p class="rank-why">Built Northlane's enterprise team from three to twenty. Same sector, same city.</p>
+        </div>
+      </li>
+      <li class="flow-row">
+        <span class="flow-n">03</span>
+        <div class="flow-copy">
+          <h3>Shortlist who you want</h3>
+          <p>Tick people one by one, or everyone above a score. Each person you shortlist gets a first email written for them straight away.</p>
+        </div>
+        <div class="flow-art art-short">
+          <span class="art-pill">Score 85 and above</span>
+          <span class="art-btn">Shortlist 12</span>
+        </div>
+      </li>
+      <li class="flow-row">
+        <span class="flow-n">04</span>
+        <div class="flow-copy">
+          <h3>Send and track</h3>
+          <p>Review the drafts and send from your own Gmail. Replies come back sorted, and anyone who has not answered gets a short follow-up a few days later.</p>
+        </div>
+        <div class="flow-art art-track">
+          <div class="track-line"><span class="dot-ok"></span>Sent from you@yourfirm.com</div>
+          <div class="track-line"><span class="dot-wait"></span>Follow-up booked for Friday</div>
+          <div class="track-line"><span class="tag-int">Interested</span>&ldquo;Happy to talk, Thursday works&rdquo;</div>
+        </div>
+      </li>
+    </ol>
   </div>
 </section>
 
 <section class="reach" id="reach">
   <div class="reach-inner">
     <div class="kicker">Outreach</div>
-    <h2>Messages written while you browse.</h2>
-    <p class="lede">The extension reads the profile in front of you and the role you are working, and drafts something worth sending. Your recruiter reviews, edits and sends. Nothing is automated behind their back.</p>
+    <h2>Shortlist candidates, send ready emails.</h2>
+    <p class="lede">Every first email is written from the candidate's own career history and your brief. Your recruiters read it, change what they like, and send from their own inbox. Nothing goes out until they say so.</p>
   </div>
 </section>
 
 <div class="demo-wrap">
-  <div class="window" aria-label="Product demo showing a LinkedIn outreach message being generated">
+  <div class="window" aria-label="Product demo: a shortlisted candidate's first email is written, sent from Gmail and gets a reply">
     <div class="window-bar">
       <span class="tl"></span><span class="tl"></span><span class="tl"></span>
-      <span class="window-title">linkedin.com/in/sarah-chen</span>
+      <span class="window-title">portal.linkwellhq.com &middot; Head of Sales &middot; Outreach</span>
     </div>
     <div class="split">
 
       <div class="profile-pane">
-        <div class="scanline" id="scanline"></div>
-        <div class="pane-label">Profile detected</div>
-        <div class="profile-card">
-          <div class="p-cover"></div>
-          <div class="p-body">
-            <div class="avatar">SC</div>
-            <div class="p-name">Sarah Chen</div>
-            <div class="p-title">Director of Research at Meridian Partners | Healthcare M&amp;A</div>
-            <div class="p-meta">New York, United States &middot; <span class="conn">500+ connections</span></div>
-            <div class="p-actions">
-              <span class="p-action primary">Connect</span>
-              <span class="p-action secondary">Message</span>
-            </div>
-            <div class="p-line w95"></div>
-            <div class="p-line w80"></div>
-            <div class="p-line w60"></div>
-          </div>
-        </div>
-        <div class="case-chip">
-          <span class="doc">PDF</span>
-          <span>Director of Research, job brief.pdf</span>
-        </div>
+        <div class="pane-label">Shortlist</div>
+        <ul class="sl-list">
+          <li class="sl-item on"><span class="rank-av">PS</span><span class="rank-who"><b>Priya Shah</b><span>Head of Enterprise Sales, Northlane</span></span><span class="rank-score">92</span></li>
+          <li class="sl-item"><span class="rank-av av2">DO</span><span class="rank-who"><b>Daniel Okafor</b><span>VP Sales EMEA, Paycircle</span></span><span class="rank-score">89</span></li>
+          <li class="sl-item"><span class="rank-av av3">ML</span><span class="rank-who"><b>Marta Lindqvist</b><span>Sales Director, Fennel</span></span><span class="rank-score">87</span></li>
+        </ul>
         <div class="reading-status" id="readStatus">
           <span class="spinner" id="spinner"></span>
-          <span id="statusText">Reading profile</span>
+          <span id="statusText">Writing Priya's email</span>
         </div>
       </div>
 
       <div class="compose-pane">
-        <div class="mode-chips">
-          <span class="mode-chip active">Connection note</span>
-          <span class="mode-chip">Message</span>
-          <span class="mode-chip">InMail</span>
-          <span class="mode-chip">Email</span>
+        <div class="mail-head">
+          <div><span>To</span>priya.shah@northlane.io</div>
+          <div><span>Subject</span>Head of Sales at a London payments scale-up</div>
         </div>
         <div class="compose-body" id="bodyText"></div>
         <div class="compose-foot">
-          <span class="char-count"><span id="charNow" class="ok">0</span> / 300</span>
-          <a class="btn btn-dark copy-btn" id="copyBtn" href="#">Copy message</a>
+          <span class="mail-state" id="mailState">Draft</span>
+          <span class="btn btn-dark copy-btn" id="copyBtn">Send from Gmail</span>
         </div>
       </div>
 
@@ -649,7 +692,7 @@
       </div>
       <div class="who-card">
         <h3>Expert networks</h3>
-        <p>Turn a client brief into a ranked list of people who have actually done the job, with the reasoning next to each name. Reach out from LinkedIn and email, and keep every conversation on the expert's record.</p>
+        <p>Turn a client brief into a ranked list of people who have actually done the job, with the reasoning next to each name. Email them from your own inbox, and keep every reply on the expert's record.</p>
       </div>
     </div>
   </div>
@@ -676,86 +719,60 @@
 <script>
 (function () {
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
   var bodyEl = document.getElementById('bodyText');
-  var copyBtn = document.getElementById('copyBtn');
-  var charNow = document.getElementById('charNow');
+  var sendBtn = document.getElementById('copyBtn');
   var statusText = document.getElementById('statusText');
   var spinner = document.getElementById('spinner');
-  var scanline = document.getElementById('scanline');
+  var state = document.getElementById('mailState');
 
-  var message = "Hi Sarah, I'm hiring a Director of Research for a healthcare M&A focused client and your work at Meridian stood out, particularly your mid market coverage. Open to a quick chat this week?";
+  var message = "Hi Priya,\n\nI'm working on a Head of Sales search for a Series B payments company in London. You built the enterprise team at Northlane from three people to twenty, which is close to what they need next.\n\nWould you be open to a short call this week or next?\n\nBest,\nSam";
 
+  function setState(text, cls) { state.textContent = text; state.className = 'mail-state' + (cls ? ' ' + cls : ''); }
   function setStatic() {
     bodyEl.textContent = message;
-    charNow.textContent = message.length;
-    statusText.textContent = 'Profile read';
+    statusText.textContent = 'Email ready to review';
     spinner.style.display = 'none';
-    copyBtn.classList.add('show');
+    sendBtn.classList.add('show');
+    setState('Draft');
   }
-
   if (reduced) { setStatic(); return; }
 
   var spinAngle = 0;
-  setInterval(function () {
-    spinAngle = (spinAngle + 30) % 360;
-    spinner.style.transform = 'rotate(' + spinAngle + 'deg)';
-  }, 80);
+  setInterval(function () { spinAngle = (spinAngle + 30) % 360; spinner.style.transform = 'rotate(' + spinAngle + 'deg)'; }, 80);
 
   function typeText(el, text, speed, done) {
-    var i = 0;
-    var caret = document.createElement('span');
+    var i = 0, caret = document.createElement('span');
     caret.className = 'caret';
     el.appendChild(caret);
-    function step() {
+    (function step() {
       if (i < text.length) {
-        var ch = document.createTextNode(text.charAt(i));
-        el.insertBefore(ch, caret);
+        el.insertBefore(document.createTextNode(text.charAt(i)), caret);
         i++;
-        charNow.textContent = i;
-        var delay = speed + Math.random() * speed;
-        var c = text.charAt(i - 1);
-        if (c === '.' || c === ',') delay += 70;
+        var c = text.charAt(i - 1), delay = speed + Math.random() * speed;
+        if (c === '.' || c === ',' || c === '\n') delay += 60;
         setTimeout(step, delay);
-      } else {
-        caret.remove();
-        if (done) done();
-      }
-    }
-    step();
-  }
-
-  function runScan(done) {
-    scanline.style.transition = 'none';
-    scanline.style.top = '-80px';
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        scanline.style.transition = 'top 1.6s ease-in-out';
-        scanline.style.top = '110%';
-        setTimeout(done, 1700);
-      });
-    });
+      } else { caret.remove(); if (done) done(); }
+    })();
   }
 
   function cycle() {
     bodyEl.textContent = '';
-    charNow.textContent = '0';
-    copyBtn.classList.remove('show');
-    statusText.textContent = 'Reading profile';
+    sendBtn.classList.remove('show', 'pressed');
+    setState('Writing', 'st-writing');
+    statusText.textContent = "Writing Priya's email";
     spinner.style.display = '';
-
-    runScan(function () {
-      statusText.textContent = 'Profile read';
-      spinner.style.display = 'none';
-      setTimeout(function () {
-        typeText(bodyEl, message, 14, function () {
-          copyBtn.classList.add('show');
-          setTimeout(cycle, 5200);
-        });
-      }, 350);
-    });
+    setTimeout(function () {
+      typeText(bodyEl, message, 12, function () {
+        statusText.textContent = 'Email ready to review';
+        spinner.style.display = 'none';
+        setState('Draft');
+        sendBtn.classList.add('show');
+        setTimeout(function () { sendBtn.classList.add('pressed'); setState('Sent from you@yourfirm.com', 'st-sent'); statusText.textContent = 'Follow-up booked for Friday'; }, 1600);
+        setTimeout(function () { setState('Replied · Interested', 'st-reply'); statusText.textContent = 'Priya replied: “Happy to talk, Thursday works”'; }, 3800);
+        setTimeout(cycle, 8200);
+      });
+    }, 900);
   }
-
   cycle();
 })();
 </script>
