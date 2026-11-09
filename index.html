@@ -17,6 +17,7 @@
 <meta name="twitter:image" content="https://linkwellhq.com/og-image-v2.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/hero-demo.css">
 <style>
   :root {
     --ink: #101114;
@@ -369,7 +370,7 @@
 
   .final {
     text-align: center;
-    padding: 96px 28px;
+    padding: 72px 28px 96px;
   }
   .final h2 {
     font-size: clamp(30px, 4.6vw, 44px);
@@ -394,7 +395,7 @@
 
 
   .hero { padding: 56px 28px 12px; }
-  .hunt-band { width: 100%; margin: 8px 0 0; overflow: hidden; }
+  .hunt-band { width: 100%; margin: 0; padding-top: 56px; overflow: hidden; border-top: 1px solid var(--line); }
   #hunt { display: block; width: 100%; height: 440px; }
   .hunt-caption { text-align: center; margin-top: 6px; font-size: 13px; color: var(--ink-faint); font-weight: 500; }
   .hunt-caption b { color: var(--ink-soft); font-weight: 600; }
@@ -489,7 +490,7 @@
   .mail-state.st-reply { color: #fff; background: #16a34a; border-radius: 999px; padding: 3px 10px; }
   .copy-btn.pressed { opacity: .45; }
   @media (max-width: 820px) {
-    .flow-row { grid-template-columns: 1fr; gap: 12px; }
+    .flow-row { grid-template-columns: minmax(0, 1fr); gap: 12px; }
     .flow-n { padding-top: 0; }
     .flow-art { max-width: 420px; }
   }
@@ -595,10 +596,84 @@
   </div>
 </header>
 
-<div class="hunt-band">
-  <canvas id="hunt" role="img" aria-label="Animation of hunters: a fisherman landing a fish, a heron spearing a fish, a chameleon catching a fly, a fox pouncing into the grass, an eagle diving on a mouse, a spider weaving its web, and a shark breaching through a school of fish"></canvas>
-  <div class="hunt-caption"><b>Every great hunter has a method.</b> Yours should too.</div>
-</div>
+<section class="hd-stage" aria-label="Product demo">
+  <div class="hd-back">
+    <div class="hd-window" id="heroDemo">
+      <p class="hd-sr">A walkthrough of Linkwell with made-up candidates. A recruiter describes a senior backend engineer role in London. Linkwell reads the brief, searches profiles, leaves out job hoppers and scores everyone against the must-haves. A ranked list appears with a score, a reason, a personal email and a mobile for each person. The recruiter shortlists three, and Linkwell drafts a three-email sequence for each of them on a calendar, ready to send from Gmail.</p>
+      <div class="hd-bar" aria-hidden="true">
+        <span class="hd-tl"></span><span class="hd-tl"></span><span class="hd-tl"></span>
+        <span class="hd-title" id="hdTitle">New search</span>
+      </div>
+      <div class="hd-body">
+
+        <div class="hd-scene hd-s-brief is-on" data-scene="brief" aria-hidden="true">
+          <img class="hd-mark" src="/mark.png" alt="">
+          <div class="hd-ask">
+            <div class="hd-file" id="hdFile"><span class="hd-file-ic">PDF</span><span>Senior_Backend_Engineer.pdf<small>Job spec</small></span></div>
+            <div class="hd-ask-text"><span id="hdAsk">Senior backend engineer for a Series B payments company in London. Go, Postgres and event streaming, five years or more. Hybrid, three days in Shoreditch.</span><span class="hd-caret"></span></div>
+            <div class="hd-ask-foot">
+              <span class="hd-chip">+ Job spec</span>
+              <span class="hd-chip">18+ months per role</span>
+              <span class="hd-send" id="hdSend"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5"/></svg></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hd-scene" data-scene="work" aria-hidden="true">
+          <div class="hd-col">
+            <div class="hd-bubble" id="hdBubble"></div>
+            <ol class="hd-steps" id="hdSteps"></ol>
+          </div>
+        </div>
+
+        <div class="hd-scene" data-scene="list" aria-hidden="true">
+          <div class="hd-list-head">
+            <div class="hd-list-title">24 strong matches<span>best first</span></div>
+            <div class="hd-list-side"><span class="hd-count" id="hdCount"></span><span class="hd-go" id="hdGo">Write their outreach</span></div>
+          </div>
+          <ul class="hd-cards" id="hdCards"></ul>
+          <div class="hd-more" id="hdMore"><span class="hd-faces"></span>19 more below</div>
+        </div>
+
+        <div class="hd-scene" data-scene="seq" aria-hidden="true">
+          <div class="hd-seq-head"><b>Outreach for your shortlist</b><span>3 people, 3 emails each, weekdays only</span></div>
+          <div class="hd-seq-grid">
+            <div class="hd-cal" id="hdCal"></div>
+            <div class="hd-mail">
+              <div class="hd-mail-tabs" id="hdMtabs"></div>
+              <div class="hd-mail-line"><span>To</span><span id="hdTo"></span></div>
+              <div class="hd-mail-line"><span>Subject</span><span id="hdSubj"></span></div>
+              <div class="hd-mail-body" id="hdBody"></div>
+            </div>
+          </div>
+          <div class="hd-seq-foot"><span class="hd-seq-note" id="hdNote"></span><span class="hd-ready" id="hdReady">Ready to send from your Gmail</span></div>
+        </div>
+
+        <div class="hd-cta" id="hdCta">
+          <img src="/mark.png" alt="">
+          <h2>Want this on your live role?</h2>
+          <p>We'll run Linkwell on one of your open searches in the first call.</p>
+          <a class="hd-cta-btn" href="#demo" data-demo>Request a demo</a>
+          <button type="button" class="hd-again" id="hdAgain">Watch again</button>
+        </div>
+
+      </div>
+    </div>
+    <div class="hd-nav">
+      <div class="hd-tabs">
+        <button type="button" class="hd-tab is-on" aria-pressed="true"><i><b></b></i>Brief</button>
+        <button type="button" class="hd-tab" aria-pressed="false"><i><b></b></i>Search</button>
+        <button type="button" class="hd-tab" aria-pressed="false"><i><b></b></i>Ranked</button>
+        <button type="button" class="hd-tab" aria-pressed="false"><i><b></b></i>Shortlist</button>
+        <button type="button" class="hd-tab" aria-pressed="false"><i><b></b></i>Outreach</button>
+      </div>
+      <button type="button" class="hd-pause" id="hdPause" aria-label="Pause the demo">
+        <svg class="hd-ic-pause" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="1.5" width="3" height="9" rx="1"/><rect x="7" y="1.5" width="3" height="9" rx="1"/></svg>
+        <svg class="hd-ic-play" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M3 1.6v8.8a.6.6 0 0 0 .9.5l7-4.4a.6.6 0 0 0 0-1L3.9 1.1a.6.6 0 0 0-.9.5z"/></svg>
+      </button>
+    </div>
+  </div>
+</section>
 
 <div class="logos">
   <span><span class="tick">&#10003;</span> Ranked candidate lists in about a minute</span>
@@ -749,6 +824,11 @@
     </ul>
   </div>
 </section>
+
+<div class="hunt-band">
+  <canvas id="hunt" role="img" aria-label="Animation of hunters: a fisherman landing a fish, a heron spearing a fish, a chameleon catching a fly, a fox pouncing into the grass, an eagle diving on a mouse, a spider weaving its web, and a shark breaching through a school of fish"></canvas>
+  <div class="hunt-caption"><b>Every great hunter has a method.</b> Yours should too.</div>
+</div>
 
 <section class="final" id="pricing">
   <h2>Bring Linkwell to your team.</h2>
@@ -963,6 +1043,7 @@
   });
 })();
 </script>
+<script src="/hero-demo.js" defer></script>
 <script src="/hunt.js" defer></script>
 </body>
 </html>
