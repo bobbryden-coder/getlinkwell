@@ -520,6 +520,8 @@
   .demo-form input, .demo-form select, .demo-form textarea { width: 100%; font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); }
   .demo-form input:focus, .demo-form select:focus, .demo-form textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
   .demo-form textarea { resize: vertical; min-height: 76px; }
+  .demo-form textarea.grow { resize: none; overflow: hidden; line-height: 1.45; }
+  #dBusiness { min-height: 0; }
   .demo-form .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
   .demo-form .submit { width: 100%; justify-content: center; margin-top: 4px; }
   .demo-err { color: #dc2626; font-size: 13px; margin: 4px 0 10px; display: none; }
@@ -854,13 +856,13 @@
 
       <div class="lf-step" data-step="3" hidden>
         <h3 tabindex="-1">In one sentence, what does your business do?</h3>
-        <div class="row"><input id="dBusiness" name="business" maxlength="300" placeholder="e.g. We place software engineers at London start-ups" aria-label="What your business does"></div>
+        <div class="row"><textarea id="dBusiness" class="grow" name="business" maxlength="300" rows="1" placeholder="e.g. We place software engineers at London start-ups" aria-label="What your business does"></textarea></div>
         <button class="btn btn-dark btn-lg submit" type="button" data-next>Next</button>
       </div>
 
       <div class="lf-step" data-step="4" hidden>
         <h3 tabindex="-1">Who do you need to reach?</h3>
-        <div class="row"><textarea id="dTargets" name="targets" maxlength="1000" placeholder="e.g. Senior backend engineers in London, or heads of procurement at UK retailers" aria-label="Who you need to reach"></textarea></div>
+        <div class="row"><textarea id="dTargets" class="grow" name="targets" maxlength="1000" placeholder="e.g. Senior backend engineers in London, or heads of procurement at UK retailers" aria-label="Who you need to reach"></textarea></div>
         <button class="btn btn-dark btn-lg submit" type="button" data-next>Next</button>
       </div>
 
@@ -935,8 +937,13 @@
     });
   });
   form.querySelectorAll('[data-next]').forEach(function (b) { b.addEventListener('click', next); });
+  // Typed boxes grow downwards as you type instead of scrolling sideways.
+  form.querySelectorAll('textarea.grow').forEach(function (t) {
+    var fit = function () { t.style.height = 'auto'; t.style.height = t.scrollHeight + 2 + 'px'; };
+    t.addEventListener('input', fit); t.addEventListener('focus', fit);
+  });
   form.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && e.target.tagName === 'INPUT' && at < steps.length - 1) { e.preventDefault(); next(); }
+    if (e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.target.id === 'dBusiness') && at < steps.length - 1) { e.preventDefault(); next(); }
   });
   back.addEventListener('click', function () { if (at > 0) show(at - 1); });
   form.addEventListener('submit', function (e) {
