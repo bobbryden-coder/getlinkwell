@@ -526,6 +526,19 @@
   .demo-done { text-align: center; padding: 18px 4px 6px; display: none; }
   .demo-done .tick { width: 48px; height: 48px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-size: 24px; font-weight: 700; margin: 0 auto 14px; }
   @media (max-width: 480px) { .demo-form .two { grid-template-columns: 1fr; } .demo-modal { padding: 22px; } }
+  /* Step-by-step lead form: easy one-tap questions first, contact details last */
+  .step-count { font-size: 12px; font-weight: 600; color: var(--ink-faint); letter-spacing: .04em; margin-bottom: 10px; }
+  .lf-step h3 { margin-bottom: 18px; padding-right: 28px; }
+  .lf-step h3:focus { outline: none; }
+  .lf-step .lead { margin-top: -10px; }
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .choices-col { grid-template-columns: 1fr; }
+  .choice { font: inherit; font-size: 15px; font-weight: 600; text-align: left; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); cursor: pointer; }
+  .choice:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .choice.picked { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .step-back { margin-top: 14px; border: 0; background: none; font: inherit; font-size: 13px; color: var(--ink-soft); cursor: pointer; padding: 4px 0; }
+  .step-back:hover { color: var(--ink); }
   @media (prefers-reduced-motion: reduce) {
     .caret, .spinner { animation: none !important; }
   }
@@ -819,22 +832,60 @@
   <div class="demo-modal">
     <button class="demo-close" type="button" aria-label="Close" data-close>&times;</button>
     <form class="demo-form" id="demoForm" novalidate>
-      <h3 id="demoTitle">Request a demo</h3>
-      <p class="lead">Tell us a little about your team. We'll set you up on one of your live roles in the first call.</p>
-      <div class="two">
-        <div class="row"><label for="dName">Name</label><input id="dName" name="name" autocomplete="name" required></div>
-        <div class="row"><label for="dEmail">Work email</label><input id="dEmail" name="email" type="email" autocomplete="email" required></div>
-      </div>
-      <div class="two">
-        <div class="row"><label for="dCompany">Company</label><input id="dCompany" name="company" autocomplete="organization"></div>
-        <div class="row"><label for="dSize">Team size</label>
-          <select id="dSize" name="teamSize"><option value="">Select</option><option>1&ndash;5</option><option>6&ndash;20</option><option>21&ndash;100</option><option>100+</option></select>
+      <p class="step-count" id="stepCount" aria-live="polite">1 of 6</p>
+
+      <div class="lf-step" data-step="1">
+        <h3 id="demoTitle" tabindex="-1">Are you a business owner?</h3>
+        <div class="choices" data-name="isOwner">
+          <button type="button" class="choice" data-value="Yes">Yes</button>
+          <button type="button" class="choice" data-value="No">No</button>
         </div>
       </div>
-      <div class="row"><label for="dMsg">What roles or briefs are you working on? <span style="font-weight:400;color:var(--ink-faint)">(optional)</span></label><textarea id="dMsg" name="message"></textarea></div>
-      <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-      <p class="demo-err" id="demoErr"></p>
-      <button class="btn btn-dark btn-lg submit" type="submit" id="demoSubmit">Request a demo</button>
+
+      <div class="lf-step" data-step="2" hidden>
+        <h3 tabindex="-1">How many people are you trying to reach each month?</h3>
+        <div class="choices" data-name="reachPerMonth">
+          <button type="button" class="choice" data-value="Under 100">Under 100</button>
+          <button type="button" class="choice" data-value="100-500">100&ndash;500</button>
+          <button type="button" class="choice" data-value="500-2,000">500&ndash;2,000</button>
+          <button type="button" class="choice" data-value="2,000+">2,000+</button>
+        </div>
+      </div>
+
+      <div class="lf-step" data-step="3" hidden>
+        <h3 tabindex="-1">In one sentence, what does your business do?</h3>
+        <div class="row"><input id="dBusiness" name="business" maxlength="300" placeholder="e.g. We place software engineers at London start-ups" aria-label="What your business does"></div>
+        <button class="btn btn-dark btn-lg submit" type="button" data-next>Next</button>
+      </div>
+
+      <div class="lf-step" data-step="4" hidden>
+        <h3 tabindex="-1">Who do you need to reach?</h3>
+        <div class="row"><textarea id="dTargets" name="targets" maxlength="1000" placeholder="e.g. Senior backend engineers in London, or heads of procurement at UK retailers" aria-label="Who you need to reach"></textarea></div>
+        <button class="btn btn-dark btn-lg submit" type="button" data-next>Next</button>
+      </div>
+
+      <div class="lf-step" data-step="5" hidden>
+        <h3 tabindex="-1">How do you find them today?</h3>
+        <div class="choices choices-col" data-name="currentMethod">
+          <button type="button" class="choice" data-value="LinkedIn Recruiter or Sales Navigator">LinkedIn Recruiter or Sales Navigator</button>
+          <button type="button" class="choice" data-value="Another sourcing tool">Another sourcing tool</button>
+          <button type="button" class="choice" data-value="My own network and referrals">My own network and referrals</button>
+          <button type="button" class="choice" data-value="Not doing it yet">Not doing it yet</button>
+        </div>
+      </div>
+
+      <div class="lf-step" data-step="6" hidden>
+        <h3 tabindex="-1">Last step: where can we reach you?</h3>
+        <p class="lead">We'll run Linkwell on one of your live searches in the first call.</p>
+        <div class="row"><label for="dName">Name</label><input id="dName" name="name" autocomplete="name" required></div>
+        <div class="row"><label for="dEmail">Email</label><input id="dEmail" name="email" type="email" autocomplete="email" required></div>
+        <div class="row"><label for="dPhone">Phone <span style="font-weight:400;color:var(--ink-faint)">(optional)</span></label><input id="dPhone" name="phone" type="tel" autocomplete="tel"></div>
+        <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <p class="demo-err" id="demoErr"></p>
+        <button class="btn btn-dark btn-lg submit" type="submit" id="demoSubmit">Book my demo</button>
+      </div>
+
+      <button type="button" class="step-back" id="stepBack" hidden>&larr; Back</button>
     </form>
     <div class="demo-done" id="demoDone">
       <div class="tick">&#10003;</div>
@@ -854,26 +905,54 @@
     if (e) e.preventDefault();
     lastFocus = document.activeElement;
     overlay.classList.add('open'); document.body.style.overflow = 'hidden';
-    setTimeout(function () { var f = document.getElementById('dName'); if (f && form.style.display !== 'none') f.focus(); }, 30);
+    setTimeout(function () { var f = form.querySelector('.lf-step:not([hidden]) h3'); if (f && form.style.display !== 'none') f.focus(); }, 30);
   }
   function close() { overlay.classList.remove('open'); document.body.style.overflow = ''; if (lastFocus) lastFocus.focus(); }
   document.querySelectorAll('[data-demo]').forEach(function (a) { a.addEventListener('click', open); });
   overlay.addEventListener('click', function (e) { if (e.target === overlay || e.target.hasAttribute('data-close')) close(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && overlay.classList.contains('open')) close(); });
   if (location.hash === '#demo') open();
+  // One question at a time. Tapping an answer moves on; typed answers move on with Next or Enter.
+  var steps = [].slice.call(form.querySelectorAll('.lf-step')), back = document.getElementById('stepBack'), count = document.getElementById('stepCount');
+  var answers = {}, at = 0;
+  function show(i) {
+    at = i;
+    steps.forEach(function (s, n) { s.hidden = n !== i; });
+    back.hidden = i === 0; count.textContent = (i + 1) + ' of ' + steps.length;
+    var f = steps[i].querySelector('input:not(.hp), textarea, .choice.picked, h3');
+    if (f) setTimeout(function () { f.focus(); }, 30);
+  }
+  function next() {
+    try { if (window.posthog) posthog.capture('lead_form_step', { step: at + 1 }); } catch (x) {}
+    if (at < steps.length - 1) show(at + 1);
+  }
+  form.querySelectorAll('.choices').forEach(function (group) {
+    group.addEventListener('click', function (e) {
+      var b = e.target.closest('.choice'); if (!b) return;
+      group.querySelectorAll('.choice').forEach(function (c) { c.classList.toggle('picked', c === b); });
+      answers[group.getAttribute('data-name')] = b.getAttribute('data-value');
+      setTimeout(next, 160);
+    });
+  });
+  form.querySelectorAll('[data-next]').forEach(function (b) { b.addEventListener('click', next); });
+  form.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT' && at < steps.length - 1) { e.preventDefault(); next(); }
+  });
+  back.addEventListener('click', function () { if (at > 0) show(at - 1); });
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     var data = {}; new FormData(form).forEach(function (v, k) { data[k] = v; });
+    for (var k in answers) data[k] = answers[k];
     err.style.display = 'none';
-    if (!data.name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email || '')) { err.textContent = 'Please add your name and a valid work email.'; err.style.display = 'block'; return; }
+    if (!data.name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email || '')) { err.textContent = 'Please add your name and a valid email.'; err.style.display = 'block'; return; }
     btn.disabled = true; btn.textContent = 'Sending...';
     fetch('https://gmail-ai-backend.vercel.app/api/demo-request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || 'Something went wrong.'); }); })
       .then(function () {
         form.style.display = 'none'; done.style.display = 'block';
-        try { if (window.posthog) { posthog.identify(data.email, { email: data.email, name: data.name, company: data.company }); posthog.capture('demo_requested', { company: data.company, team_size: data.teamSize }); } } catch (x) {}
+        try { if (window.posthog) { posthog.identify(data.email, { email: data.email, name: data.name }); posthog.capture('demo_requested', { is_owner: data.isOwner, reach_per_month: data.reachPerMonth, current_method: data.currentMethod }); } } catch (x) {}
       })
-      .catch(function (x) { err.textContent = x.message + ' You can also email bob.bryden88@gmail.com.'; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Request a demo'; });
+      .catch(function (x) { err.textContent = x.message + ' You can also email bob.bryden88@gmail.com.'; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Book my demo'; });
   });
 })();
 </script>
